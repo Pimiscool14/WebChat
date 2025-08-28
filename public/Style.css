@@ -1,8 +1,32 @@
 body {
-    background-color: black;
+    background-color: #121212;
+    color: #eee;
     font-family: Arial, sans-serif;
 }
 
-h1 {
+#messages {
+    list-style-type: none;
+    padding: 0;
+}
+
+#messages li {
+    padding: 5px 10px;
+    border-bottom: 1px solid #333;
+}
+
+#chat-form input, #chat-form button {
+    padding: 10px;
+    margin: 5px;
+    border-radius: 5px;
+    border: none;
+}
+
+#chat-form input {
+    width: 70%;
+}
+
+#chat-form button {
+    background-color: #1e88e5;
     color: white;
+    cursor: pointer;
 }

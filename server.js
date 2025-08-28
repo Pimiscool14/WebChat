@@ -5,7 +5,7 @@ const io = require('socket.io')(http);
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 
-app.use(express.static('public')); // alles in public wordt zichtbaar in browser
+app.use(express.static('public')); // belangrijk!
 app.use(express.json());
 
 // Hier slaan we accounts op (tijdelijk in een bestand)
@@ -56,7 +56,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
 http.listen(PORT, () => {
     console.log(`Server draait op http://localhost:${PORT}`);
 });
