@@ -1,0 +1,37 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>WebChat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>WebChat</h1>
+
+    <div id="loginDiv">
+        <h2>Inloggen</h2>
+        <input type="text" id="username" placeholder="Gebruikersnaam"><br>
+        <input type="password" id="password" placeholder="Wachtwoord"><br>
+        <button onclick="login()">Inloggen</button>
+        <button onclick="showRegister()">Account maken</button>
+    </div>
+
+    <div id="registerDiv" style="display:none;">
+        <h2>Account maken</h2>
+        <input type="text" id="regUsername" placeholder="Gebruikersnaam"><br>
+        <input type="password" id="regPassword" placeholder="Wachtwoord"><br>
+        <button onclick="register()">Maak account</button>
+        <button onclick="showLogin()">Terug naar login</button>
+    </div>
+
+    <div id="chatDiv" style="display:none;">
+        <h2>Chat</h2>
+        <div id="chatBox" style="border:1px solid black; height:200px; overflow:auto;"></div>
+        <input type="text" id="message" placeholder="Typ je bericht">
+        <button onclick="sendMessage()">Verstuur</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+    <link rel="stylesheet" href="style.css">
+</body>
+</html>
