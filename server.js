@@ -5,10 +5,10 @@ const io = require('socket.io')(http);
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 
-app.use(express.static('public')); // belangrijk!
+app.use(express.static('public'));
 app.use(express.json());
 
-// Hier slaan we accounts op (tijdelijk in een bestand)
+// Accounts opslaan in JSON bestand
 const accountsFile = './accounts.json';
 if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
 
@@ -25,7 +25,7 @@ app.post('/register', async (req, res) => {
     accounts.push({username, password: hashedPassword});
     fs.writeFileSync(accountsFile, JSON.stringify(accounts));
 
-    res.send({message: 'Account aangemaakt!'});
+    res.send({message: 'Account aangemaakt!', username});
 });
 
 // Inloggen
@@ -39,15 +39,16 @@ app.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if(!match) return res.status(400).send({error: 'Fout wachtwoord'});
 
-    res.send({message: 'Inloggen gelukt!'});
+    // Stuur username terug
+    res.send({message: 'Inloggen gelukt!', username: user.username});
 });
 
 // Live chat
 io.on('connection', (socket) => {
     console.log('Een gebruiker is verbonden');
 
-    socket.on('chat message', msg => {
-        io.emit('chat message', msg);
+    socket.on('chat message', data => {
+        io.emit('chat message', data);
     });
 
     socket.on('disconnect', () => {
@@ -55,6 +56,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// Gebruik juiste poort voor Render
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`Server draait op http://localhost:${PORT}`);
