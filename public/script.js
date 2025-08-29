@@ -1,14 +1,39 @@
 const socket = io();
 let username = "";
 
-// ---------- MODE TOGGLE ----------
+// THEME TOGGLE — betrouwbaar en persistent
 const body = document.body;
 const modeBtn = document.getElementById("mode-toggle");
-if (localStorage.getItem("mode") === "light") body.classList.add("light");
+const messagesEl = document.getElementById("messages");
+
+// apply saved theme on load
+(function applySavedTheme(){
+  const saved = localStorage.getItem("mode");
+  if (saved === "light") {
+    body.classList.add("light");
+  } else {
+    body.classList.remove("light");
+  }
+})();
+
+// toggle handler
 modeBtn.addEventListener("click", () => {
-    body.classList.toggle("light");
-    localStorage.setItem("mode", body.classList.contains("light") ? "light" : "dark");
+  const isLight = body.classList.toggle("light");
+  localStorage.setItem("mode", isLight ? "light" : "dark");
+  // small visual feedback
+  modeBtn.textContent = isLight ? "Donker modus" : "Licht modus";
 });
+
+// ensure button label matches state on load
+modeBtn.textContent = body.classList.contains("light") ? "Donker modus" : "Licht modus";
+
+// When appending messages later, use this helper to scroll smoothly:
+function scrollMessagesToBottom() {
+  // instant jump:
+  // messagesEl.scrollTop = messagesEl.scrollHeight;
+  // smooth behaviour:
+  messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' });
+}
 
 // ---------- HASH FUNCTIE voor kleurtjes ----------
 function stringToColor(str) {

@@ -1,84 +1,106 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <title>WebChat</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h1>Welkom bij WebChat</h1>
+:root {
+  --bg: #121212;
+  --panel: #1e1e1e;
+  --card: #2a2a2a;
+  --text: #eee;
+  --accent: #6200ee;
+  --accent-hover: #3700b3;
+  --scroll-track: #2b2b2b;
+  --scroll-thumb: #444;
+}
 
-    <!-- Registreren -->
-    <form id="register-form">
-        <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
-        <input id="reg-password" type="password" placeholder="Wachtwoord" required>
-        <button type="submit">Account maken</button>
-    </form>
-
-    <!-- Inloggen -->
-    <form id="login-form">
-        <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
-        <input id="log-password" type="password" placeholder="Wachtwoord" required>
-        <button type="submit">Inloggen</button>
-    </form>
-
-    <button id="mode-toggle">Toggle Mode</button>
-
-    <!-- Chat -->
-    <div id="chat-section" style="display:none;">
-        <ul id="messages"></ul>
-
-        <form id="chat-form">
-            <input id="message" autocomplete="off" placeholder="Typ hier..." required>
-            <button type="submit">Verstuur</button>
-        </form>
-
-        <!-- Upload foto -->
-        <input type="file" id="photo-input" accept="image/*">
-        <!-- Spraak opnemen -->
-        <button id="record-btn">Record</button>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=4"></script>
+body.light {
+  --bg: #f0f0f0;
+  --panel: #ffffff;
+  --card: #eeeeee;
+  --text: #222;
+  --accent: #6200ee;
+  --accent-hover: #3700b3;
+  --scroll-track: #e6e6e6;
+  --scroll-thumb: #c0c0c0;
+}
 
 body {
-    font-family: Arial, sans-serif;
-    background: #121212;
-    color: #eee;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background .2s ease, color .2s ease;
 }
-body.light {
-    background: #f0f0f0;
-    color: #222;
-}
-form { margin: 10px; }
+
+/* container */
 #chat-section {
-    width: 400px;
-    border: 1px solid #333;
-    padding: 10px;
-    background: #1e1e1e;
-    border-radius: 8px;
+  width: 420px;
+  border: 1px solid var(--panel);
+  padding: 12px;
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
 }
-body.light #chat-section { background: #fff; border-color: #aaa; }
+
+/* messages area */
 #messages {
-    list-style: none;
-    padding: 0;
-    height: 300px;
-    overflow-y: auto;
-    margin-bottom: 10px;
+  list-style: none;
+  padding: 8px;
+  height: 340px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--card);
+  transition: background .2s ease;
 }
+
+/* message bubbles */
 #messages li {
-    margin: 5px 0;
-    padding: 5px;
-    background: #2a2a2a;
-    border-radius: 4px;
+  margin: 6px 0;
+  padding: 8px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 6px;
 }
-body.light #messages li { background: #eee; color: #222; }
-input, button { padding: 8px; border-radius: 4px; border: none; }
-button { background: #6200ee; color: white; cursor: pointer; }
-button:hover { background: #3700b3; }
-</body>
-</html>
+
+/* inputs/buttons */
+input, button {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+}
+button {
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+button:hover { background: var(--accent-hover); }
+
+/* Toggle knop styling */
+#mode-toggle {
+  margin: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+}
+
+/* Custom scrollbar (WebKit browsers) */
+#messages::-webkit-scrollbar {
+  width: 12px;
+}
+#messages::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 8px;
+}
+#messages::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar */
+@-moz-document url-prefix() {
+  #messages {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  }
+}
