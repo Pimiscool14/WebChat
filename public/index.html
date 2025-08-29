@@ -1,44 +1,46 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-    <meta charset="UTF-8">
-    <title>WebChat</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <title>WebChat</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Welkom bij WebChat</h1>
-<button id="mode-toggle">Toggle Mode</button>
+  <h1>Welkom bij WebChat</h1>
 
-    <!-- Registreren -->
-    <form id="register-form">
-        <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
-        <input id="reg-password" type="password" placeholder="Wachtwoord" required>
-        <button type="submit">Account maken</button>
+  <!-- Registreren -->
+  <form id="register-form">
+    <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
+    <input id="reg-password" type="password" placeholder="Wachtwoord" required>
+    <button type="submit">Account maken</button>
+  </form>
+
+  <!-- Inloggen -->
+  <form id="login-form">
+    <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
+    <input id="log-password" type="password" placeholder="Wachtwoord" required>
+    <button type="submit">Inloggen</button>
+  </form>
+
+  <button id="mode-toggle" style="display:none;">Toggle Mode</button>
+
+  <!-- Chat -->
+  <div id="chat-section" style="display:none;">
+    <ul id="messages"></ul>
+
+    <form id="chat-form">
+      <input id="message" autocomplete="off" placeholder="Typ hier..." required>
+      <button type="submit">Verstuur</button>
     </form>
 
-    <!-- Inloggen -->
-    <form id="login-form">
-        <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
-        <input id="log-password" type="password" placeholder="Wachtwoord" required>
-        <button type="submit">Inloggen</button>
-    </form>
-
-    <!-- Chat -->
-    <div id="chat-section" style="display:none;">
-        <ul id="messages"></ul>
-
-        <form id="chat-form">
-            <input id="message" autocomplete="off" placeholder="Typ hier..." required>
-            <button type="submit">Verstuur</button>
-        </form>
-
-        <!-- Upload foto -->
-        <input type="file" id="photo-input" accept="image/*">
-        <!-- Spraak opnemen -->
-        <button id="record-btn">Record</button>
+    <div style="margin-top:8px;">
+      <input type="file" id="photo-input" accept="image/*">
+      <button id="record-btn">Record</button>
     </div>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=3"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- cache-bust: wijzig v=1 -> v=2 etc. bij updates -->
+  <script src="script.js?v=5"></script>
 </body>
 </html>
