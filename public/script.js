@@ -5,7 +5,7 @@ let username = "";
 const body = document.body;
 const modeBtn = document.getElementById("mode-toggle");
 
-// Kijk of er al een voorkeur is opgeslagen
+// Check saved mode
 if (localStorage.getItem("mode") === "light") {
     body.classList.add("light");
 }
@@ -32,19 +32,30 @@ function formatMessage(text) {
     return text.replace(urlRegex, (url) => {
         let embedCode = "";
 
+        // YouTube
         if (url.includes("youtube.com/watch?v=") || url.includes("youtu.be/")) {
             let videoId = url.includes("youtube.com") ? new URL(url).searchParams.get("v") : url.split("/").pop();
             embedCode = `<br><iframe width="300" height="169" src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
-        } else if (url.includes("vimeo.com/")) {
+        }
+        // Vimeo
+        else if (url.includes("vimeo.com/")) {
             const videoId = url.split("vimeo.com/")[1];
             embedCode = `<br><iframe src="https://player.vimeo.com/video/${videoId}" width="300" height="169" frameborder="0" allowfullscreen></iframe>`;
-        } else if (url.match(/\.(mp4|webm|ogg)$/i)) {
+        }
+        // Directe video-bestanden
+        else if (url.match(/\.(mp4|webm|ogg)$/i)) {
             embedCode = `<br><video width="300" controls><source src="${url}">Je browser ondersteunt geen video-tag.</video>`;
-        } else if (url.match(/\.(mp3|wav|ogg)$/i)) {
+        }
+        // Audio
+        else if (url.match(/\.(mp3|wav|ogg)$/i)) {
             embedCode = `<br><audio controls><source src="${url}">Je browser ondersteunt geen audio-tag.</audio>`;
-        } else if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        }
+        // Afbeeldingen
+        else if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
             embedCode = `<br><img src="${url}" style="max-width:300px; border-radius:8px; margin-top:5px;">`;
-        } else if (url.includes("tiktok.com/")) {
+        }
+        // TikTok
+        else if (url.includes("tiktok.com/")) {
             embedCode = `<br><blockquote class="tiktok-embed" cite="${url}" data-video-id="" style="max-width:300px;min-width:300px;"><a href="${url}">Bekijk TikTok</a></blockquote><script async src="https://www.tiktok.com/embed.js"></script>`;
         }
 
@@ -85,7 +96,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         alert(data.message);
         username = logUser;
 
-        // chat tonen
+        // Chat tonen
         document.getElementById('login-form').style.display = 'none';
         document.getElementById('register-form').style.display = 'none';
         document.getElementById('chat-section').style.display = 'block';
@@ -130,5 +141,5 @@ socket.on('chat message', (data) => {
     li.appendChild(msgSpan);
 
     document.getElementById('messages').appendChild(li);
-    li.scrollIntoView(); // scroll automatisch naar laatste bericht
+    li.scrollIntoView();
 });
