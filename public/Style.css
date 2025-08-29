@@ -30,3 +30,17 @@ body {
     color: white;
     cursor: pointer;
 }
+
+/* Light mode */
+body.light {
+    background: #f2f2f2;
+    color: #222;
+}
+body.light #chat-section {
+    background: #fff;
+    border: 1px solid #ccc;
+}
+body.light #messages li {
+    background: #eee;
+}
+
