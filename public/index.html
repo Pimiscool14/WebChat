@@ -1,37 +1,82 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
+    <meta charset="UTF-8">
     <title>WebChat</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form {
+            margin: 10px;
+        }
+        #chat-section {
+            width: 400px;
+            border: 1px solid #333;
+            padding: 10px;
+            background: #1e1e1e;
+            border-radius: 8px;
+        }
+        #messages {
+            list-style: none;
+            padding: 0;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        #messages li {
+            margin: 5px 0;
+            padding: 5px;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        input, button {
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+        button {
+            background: #6200ee;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3700b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>WebChat</h1>
+    <h1>Welkom bij WebChat</h1>
 
-    <div id="loginDiv">
-        <h2>Inloggen</h2>
-        <input type="text" id="username" placeholder="Gebruikersnaam"><br>
-        <input type="password" id="password" placeholder="Wachtwoord"><br>
-        <button onclick="login()">Inloggen</button>
-        <button onclick="showRegister()">Account maken</button>
-    </div>
+    <!-- Registreren -->
+    <form id="register-form">
+        <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
+        <input id="reg-password" type="password" placeholder="Wachtwoord" required>
+        <button type="submit">Account maken</button>
+    </form>
 
-    <div id="registerDiv" style="display:none;">
-        <h2>Account maken</h2>
-        <input type="text" id="regUsername" placeholder="Gebruikersnaam"><br>
-        <input type="password" id="regPassword" placeholder="Wachtwoord"><br>
-        <button onclick="register()">Maak account</button>
-        <button onclick="showLogin()">Terug naar login</button>
-    </div>
+    <!-- Inloggen -->
+    <form id="login-form">
+        <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
+        <input id="log-password" type="password" placeholder="Wachtwoord" required>
+        <button type="submit">Inloggen</button>
+    </form>
 
-    <div id="chatDiv" style="display:none;">
-        <h2>Chat</h2>
-        <div id="chatBox" style="border:1px solid black; height:200px; overflow:auto;"></div>
-        <input type="text" id="message" placeholder="Typ je bericht">
-        <button onclick="sendMessage()">Verstuur</button>
+    <!-- Chat -->
+    <div id="chat-section" style="display:none;">
+        <ul id="messages"></ul>
+        <form id="chat-form">
+            <input id="message" autocomplete="off" placeholder="Typ hier..." required>
+            <button type="submit">Verstuur</button>
+        </form>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
-    <link rel="stylesheet" href="style.css">
 </body>
 </html>

@@ -1,68 +1,69 @@
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const chatSection = document.getElementById('chat-section');
-const messages = document.getElementById('messages');
-
-let socket;
-let username;
+const socket = io();
+let username = "";
 
 // Registreren
-registerForm.addEventListener('submit', async (e) => {
+document.getElementById('register-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const regUser = document.getElementById('reg-username').value;
     const regPass = document.getElementById('reg-password').value;
 
     const res = await fetch('/register', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({username: regUser, password: regPass})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: regUser, password: regPass })
     });
-    const data = await res.json();
 
-    if(data.error) alert(data.error);
-    else {
-        alert(data.message);
-        registerForm.reset();
-    }
+    const data = await res.json();
+    alert(data.message || data.error);
 });
 
 // Inloggen
-loginForm.addEventListener('submit', async (e) => {
+document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const logUser = document.getElementById('log-username').value;
     const logPass = document.getElementById('log-password').value;
 
     const res = await fetch('/login', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({username: logUser, password: logPass})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: logUser, password: logPass })
     });
+
     const data = await res.json();
+    if (data.message) {
+        alert(data.message);
+        username = logUser;
 
-    if(data.error) alert(data.error);
-    else {
-        username = data.username;
-        loginForm.style.display = 'none';
-        registerForm.style.display = 'none';
-        chatSection.style.display = 'block';
-
-        // Verbinden met chat
-        socket = io();
-
-        document.getElementById('chat-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('message');
-            if(input.value){
-                socket.emit('chat message', {user: username, msg: input.value});
-                input.value = '';
-            }
-        });
-
-        socket.on('chat message', (data) => {
-            const li = document.createElement('li');
-            li.textContent = `${data.user}: ${data.msg}`;
-            messages.appendChild(li);
-            messages.scrollTop = messages.scrollHeight; // scroll naar beneden
-        });
+        // chat tonen
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('chat-section').style.display = 'block';
+    } else {
+        alert(data.error);
     }
+});
+
+// Chat versturen
+document.getElementById('chat-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('message');
+    if (input.value.trim() !== "") {
+        socket.emit('chat message', { user: username, msg: input.value });
+        input.value = '';
+    }
+});
+
+// Enter = bericht versturen
+document.getElementById('message').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+    }
+});
+
+// Berichten ontvangen
+socket.on('chat message', (data) => {
+    const li = document.createElement('li');
+    li.textContent = `${data.user}: ${data.msg}`;
+    document.getElementById('messages').appendChild(li);
 });
