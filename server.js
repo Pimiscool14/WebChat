@@ -6,54 +6,48 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 3000;
+app.use(express.static('public')); // public map zichtbaar
+app.use(express.json({ limit: '10mb' })); // grotere berichten zoals afbeeldingen/spraak
 
-// Middleware
-app.use(express.json());
-app.use(express.static('public'));
-
-// accounts.json pad
-const accountsFile = path.join(__dirname, 'accounts.json');
+// Accounts opslaan
+const accountsFile = './accounts.json';
 if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
 
-// --- REGISTER ---
+// ---------- REGISTREREN ----------
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Vul alles in' });
-
     const accounts = JSON.parse(fs.readFileSync(accountsFile));
-    if (accounts.find(u => u.username === username)) return res.status(400).json({ error: 'Gebruikersnaam bestaat al' });
+
+    if(accounts.find(u => u.username === username)) {
+        return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     accounts.push({ username, password: hashedPassword });
-    fs.writeFileSync(accountsFile, JSON.stringify(accounts));
+    fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2));
 
-    res.json({ message: 'Account aangemaakt!' });
+    res.send({ message: 'Account aangemaakt!' });
 });
 
-// --- LOGIN ---
+// ---------- INLOGGEN ----------
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Vul alles in' });
-
-    if (!fs.existsSync(accountsFile)) return res.status(400).json({ error: 'Geen gebruikers gevonden' });
-
     const accounts = JSON.parse(fs.readFileSync(accountsFile));
     const user = accounts.find(u => u.username === username);
-    if (!user) return res.status(400).json({ error: 'Gebruiker niet gevonden' });
+
+    if(!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ error: 'Fout wachtwoord' });
+    if(!match) return res.status(400).send({ error: 'Fout wachtwoord' });
 
-    res.json({ message: 'Inloggen gelukt!' });
+    res.send({ message: 'Inloggen gelukt!' });
 });
 
-// --- SOCKET.IO CHAT ---
+// ---------- SOCKET.IO CHAT ----------
 io.on('connection', (socket) => {
     console.log('Een gebruiker is verbonden');
 
     socket.on('chat message', (data) => {
-        // Stuur naar iedereen
         io.emit('chat message', data);
     });
 
@@ -62,7 +56,8 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- SERVER START ---
+// ---------- SERVER START ----------
+const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`Server draait op http://localhost:${PORT}`);
 });
