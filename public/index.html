@@ -3,45 +3,51 @@
 <head>
   <meta charset="utf-8">
   <title>WebChat</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Stylesheet (met cache-busting) -->
+  <link rel="stylesheet" href="/style.css?v=4">
 </head>
 <body>
   <h1>Welkom bij WebChat</h1>
 
   <!-- Registreren -->
-  <form id="register-form">
+  <form id="register-form" class="auth-form">
+    <h2>Account maken</h2>
     <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
     <input id="reg-password" type="password" placeholder="Wachtwoord" required>
-    <button type="submit">Account maken</button>
+    <button type="submit">Registreren</button>
   </form>
 
   <!-- Inloggen -->
-  <form id="login-form">
+  <form id="login-form" class="auth-form">
+    <h2>Inloggen</h2>
     <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
     <input id="log-password" type="password" placeholder="Wachtwoord" required>
     <button type="submit">Inloggen</button>
   </form>
 
-  <button id="mode-toggle" style="display:none;">Toggle Mode</button>
+  <!-- Thema toggle knop -->
+  <button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
 
-  <!-- Chat -->
+  <!-- Chat sectie -->
   <div id="chat-section" style="display:none;">
     <ul id="messages"></ul>
 
-    <form id="chat-form">
-      <input id="message" autocomplete="off" placeholder="Typ hier..." required>
+    <form id="chat-form" autocomplete="off">
+      <input id="message" type="text" placeholder="Typ hier je bericht..." required>
       <button type="submit">Verstuur</button>
     </form>
 
-    <div style="margin-top:8px;">
+    <div class="extra-tools">
+      <label for="photo-input">📷 Foto:</label>
       <input type="file" id="photo-input" accept="image/*">
-      <button id="record-btn">Record</button>
+      <button id="record-btn">🎤 Opnemen</button>
     </div>
   </div>
 
+  <!-- Socket.io en JS -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- cache-bust: wijzig v=1 -> v=2 etc. bij updates -->
-  <script src="script.js?v=2"></script>
-<link rel="stylesheet" href="style.css?v=2">
+  <script src="/script.js?v=4"></script>
 </body>
 </html>

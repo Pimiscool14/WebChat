@@ -197,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Als type is image/audio, msg bevat DataURL of externe URL
     if (data.type === 'image') {
-      // If starts with data:, it's uploaded; else treat as url via formatMessage
       if (data.msg.startsWith('data:')) {
         msgSpan.innerHTML = `<img src="${data.msg}" alt="afbeelding">`;
       } else {
@@ -206,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (data.type === 'audio') {
       msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
     } else {
-      // tekst (kan ook urls bevatten)
       msgSpan.innerHTML = formatMessage(data.msg);
     }
 
