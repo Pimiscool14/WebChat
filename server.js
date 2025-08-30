@@ -65,4 +65,3 @@ http.listen(PORT, () => {
         console.log(`Server draait lokaal op http://localhost:${PORT}`);
     }
 });
-
