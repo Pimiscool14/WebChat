@@ -59,5 +59,10 @@ io.on('connection', (socket) => {
 // ---------- SERVER START ----------
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-    console.log(`Server draait op http://localhost:${PORT}`);
+    if(process.env.PORT) {
+        console.log(`Server draait op Render, toegankelijk via https://webchat-lq20.onrender.com`);
+    } else {
+        console.log(`Server draait lokaal op http://localhost:${PORT}`);
+    }
 });
+
