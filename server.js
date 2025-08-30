@@ -8,7 +8,6 @@ const fs = require('fs');
 app.use(express.static('public'));
 app.use(express.json({ limit: '10mb' }));
 
-// Accounts opslaan
 const accountsFile = './accounts.json';
 if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
 
@@ -18,14 +17,12 @@ let messages = [];
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const accounts = JSON.parse(fs.readFileSync(accountsFile));
-
   if(accounts.find(u => u.username === username))
     return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
   accounts.push({ username, password: hashedPassword, friends: [], friendRequests: [] });
   fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2));
-
   res.send({ message: 'Account aangemaakt!' });
 });
 
@@ -34,12 +31,10 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const accounts = JSON.parse(fs.readFileSync(accountsFile));
   const user = accounts.find(u => u.username === username);
-
   if(!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
 
   const match = await bcrypt.compare(password, user.password);
   if(!match) return res.status(400).send({ error: 'Fout wachtwoord' });
-
   res.send({ message: 'Inloggen gelukt!' });
 });
 
@@ -47,9 +42,7 @@ app.post('/login', async (req, res) => {
 app.post('/sendFriendRequest', (req, res) => {
   const { from, to } = req.body;
   const accounts = JSON.parse(fs.readFileSync(accountsFile));
-  const sender = accounts.find(u => u.username === from);
   const receiver = accounts.find(u => u.username === to);
-
   if (!receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
   if (receiver.friends.includes(from) || receiver.friendRequests.includes(from))
     return res.status(400).send({ error: 'Al vriend of verzoek al verstuurd' });
@@ -64,10 +57,9 @@ app.post('/respondFriendRequest', (req, res) => {
   const accounts = JSON.parse(fs.readFileSync(accountsFile));
   const sender = accounts.find(u => u.username === from);
   const receiver = accounts.find(u => u.username === to);
-
   if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-  receiver.friendRequests = receiver.friendRequests.filter(u => u !== from);
 
+  receiver.friendRequests = receiver.friendRequests.filter(u => u !== from);
   if (accept) {
     if (!receiver.friends.includes(from)) receiver.friends.push(from);
     if (!sender.friends.includes(to)) sender.friends.push(to);
@@ -88,6 +80,10 @@ app.get('/getFriends/:username', (req, res) => {
 io.on('connection', (socket) => {
   console.log('Een gebruiker is verbonden');
 
+  socket.on('set username', (username) => {
+    socket.username = username;
+  });
+
   socket.emit('chat history', messages);
 
   socket.on('chat message', (data) => {
@@ -97,6 +93,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('delete message', (id) => {
+    const msg = messages.find(m => m.id === id);
+    if (!msg || msg.user !== socket.username) return; // alleen eigen berichten
     messages = messages.filter(m => m.id !== id);
     io.emit('message deleted', id);
   });
@@ -104,8 +102,5 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => console.log('Een gebruiker is weg'));
 });
 
-// ---------- SERVER START ----------
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`Server draait op http://localhost:${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server draait op http://localhost:${PORT}`));

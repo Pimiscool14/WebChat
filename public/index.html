@@ -1,10 +1,10 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8">
-  <title>WebChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="Style.css">
+<meta charset="utf-8">
+<title>WebChat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="Style.css">
 </head>
 <body>
 <h1>Welkom bij WebChat</h1>
@@ -25,13 +25,13 @@
 
 <button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
 
+<div id="chat-container">
 <div id="chat-section" style="display:none;">
 <ul id="messages"></ul>
 <form id="chat-form" autocomplete="off">
 <input id="message" type="text" placeholder="Typ hier je bericht..." required>
 <button type="submit">Verstuur</button>
 </form>
-
 <div class="extra-tools">
 <label for="photo-input">📷 Foto:</label>
 <input type="file" id="photo-input" accept="image/*">
@@ -39,14 +39,15 @@
 </div>
 </div>
 
-<button id="toggle-friends-btn">Vrienden</button>
-<div id="friends-section" style="display:none; border:1px solid #ccc; padding:10px; margin-top:10px; width:420px; background:#222; color:#eee; border-radius:8px;">
+<div id="friends-section" style="display:none;">
 <h3>Vrienden</h3>
 <ul id="friends-list"></ul>
 <h4>Verzoeken</h4>
 <ul id="friend-requests"></ul>
 <input id="add-friend-input" placeholder="Gebruiker toevoegen">
 <button id="add-friend-btn">Toevoegen</button>
+<button id="toggle-friends-btn">Vrienden</button>
+</div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
