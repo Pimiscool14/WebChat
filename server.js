@@ -6,12 +6,15 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 
 app.use(express.static('public'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
 
 const accountsFile = './accounts.json';
-if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
+const mainChatFile = './mainChat.json';
+const privateChatFile = './privateChat.json';
 
-let messages = [];
+if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
+if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
+if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
 // ---------- REGISTREREN ----------
 app.post('/register', async (req, res) => {
@@ -80,22 +83,46 @@ app.get('/getFriends/:username', (req, res) => {
 io.on('connection', (socket) => {
   console.log('Een gebruiker is verbonden');
 
-  socket.on('set username', (username) => {
-    socket.username = username;
-  });
+  socket.on('set username', username => socket.username = username);
 
-  socket.emit('chat history', messages);
+  // Stuur main chat
+  const mainMessages = JSON.parse(fs.readFileSync(mainChatFile));
+  socket.emit('chat history', mainMessages);
 
-  socket.on('chat message', (data) => {
+  // Stuur privé chats voor deze gebruiker
+  const privateMessages = JSON.parse(fs.readFileSync(privateChatFile));
+  const userPrivate = {};
+  for(const key in privateMessages){
+    if(key.includes(socket.username)){
+      userPrivate[key] = privateMessages[key];
+    }
+  }
+  socket.emit('load private chats', userPrivate);
+
+  // Nieuwe berichten
+  socket.on('chat message', data => {
     const msg = { id: Date.now(), ...data };
-    messages.push(msg);
-    io.emit('chat message', msg);
+    if(data.privateTo){
+      const key = [socket.username, data.privateTo].sort().join('_');
+      let allPrivate = JSON.parse(fs.readFileSync(privateChatFile));
+      if(!allPrivate[key]) allPrivate[key] = [];
+      allPrivate[key].push(msg);
+      fs.writeFileSync(privateChatFile, JSON.stringify(allPrivate, null,2));
+      io.emit('private message', msg);
+    } else {
+      let allMain = JSON.parse(fs.readFileSync(mainChatFile));
+      allMain.push(msg);
+      fs.writeFileSync(mainChatFile, JSON.stringify(allMain, null,2));
+      io.emit('chat message', msg);
+    }
   });
 
-  socket.on('delete message', (id) => {
-    const msg = messages.find(m => m.id === id);
-    if (!msg || msg.user !== socket.username) return; // alleen eigen berichten
-    messages = messages.filter(m => m.id !== id);
+  socket.on('delete message', id => {
+    let allMain = JSON.parse(fs.readFileSync(mainChatFile));
+    const msg = allMain.find(m => m.id === id);
+    if(!msg || msg.user !== socket.username) return;
+    allMain = allMain.filter(m => m.id !== id);
+    fs.writeFileSync(mainChatFile, JSON.stringify(allMain, null,2));
     io.emit('message deleted', id);
   });
 
