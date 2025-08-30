@@ -4,50 +4,52 @@
   <meta charset="utf-8">
   <title>WebChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Stylesheet (werkt als style.css in /public staat) -->
-  <link rel="stylesheet" href="Style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Welkom bij WebChat</h1>
+<h1>Welkom bij WebChat</h1>
 
-  <!-- Registreren -->
-  <form id="register-form" class="auth-form">
-    <h2>Account maken</h2>
-    <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
-    <input id="reg-password" type="password" placeholder="Wachtwoord" required>
-    <button type="submit">Registreren</button>
-  </form>
+<form id="register-form" class="auth-form">
+<h2>Account maken</h2>
+<input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
+<input id="reg-password" type="password" placeholder="Wachtwoord" required>
+<button type="submit">Registreren</button>
+</form>
 
-  <!-- Inloggen -->
-  <form id="login-form" class="auth-form">
-    <h2>Inloggen</h2>
-    <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
-    <input id="log-password" type="password" placeholder="Wachtwoord" required>
-    <button type="submit">Inloggen</button>
-  </form>
+<form id="login-form" class="auth-form">
+<h2>Inloggen</h2>
+<input id="log-username" type="text" placeholder="Gebruikersnaam" required>
+<input id="log-password" type="password" placeholder="Wachtwoord" required>
+<button type="submit">Inloggen</button>
+</form>
 
-  <!-- Thema toggle knop -->
-  <button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
+<button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
 
-  <!-- Chat sectie -->
-  <div id="chat-section" style="display:none;">
-    <ul id="messages"></ul>
+<div id="chat-section" style="display:none;">
+<ul id="messages"></ul>
+<form id="chat-form" autocomplete="off">
+<input id="message" type="text" placeholder="Typ hier je bericht..." required>
+<button type="submit">Verstuur</button>
+</form>
 
-    <form id="chat-form" autocomplete="off">
-      <input id="message" type="text" placeholder="Typ hier je bericht..." required>
-      <button type="submit">Verstuur</button>
-    </form>
+<div class="extra-tools">
+<label for="photo-input">📷 Foto:</label>
+<input type="file" id="photo-input" accept="image/*">
+<button id="record-btn">🎤 Opnemen</button>
+</div>
+</div>
 
-    <div class="extra-tools">
-      <label for="photo-input">📷 Foto:</label>
-      <input type="file" id="photo-input" accept="image/*">
-      <button id="record-btn">🎤 Opnemen</button>
-    </div>
-  </div>
+<button id="toggle-friends-btn">Vrienden</button>
+<div id="friends-section" style="display:none; border:1px solid #ccc; padding:10px; margin-top:10px; width:420px; background:#222; color:#eee; border-radius:8px;">
+<h3>Vrienden</h3>
+<ul id="friends-list"></ul>
+<h4>Verzoeken</h4>
+<ul id="friend-requests"></ul>
+<input id="add-friend-input" placeholder="Gebruiker toevoegen">
+<button id="add-friend-btn">Toevoegen</button>
+</div>
 
-  <!-- Socket.io en JS -->
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
