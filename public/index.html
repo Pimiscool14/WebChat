@@ -9,13 +9,15 @@
 <body>
 <h1>Welkom bij WebChat</h1>
 
-<form id="register-form"><h2>Account maken</h2>
+<form id="register-form">
+<h2>Account maken</h2>
 <input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
 <input id="reg-password" type="password" placeholder="Wachtwoord" required>
 <button type="submit">Registreren</button>
 </form>
 
-<form id="login-form"><h2>Inloggen</h2>
+<form id="login-form">
+<h2>Inloggen</h2>
 <input id="log-username" type="text" placeholder="Gebruikersnaam" required>
 <input id="log-password" type="password" placeholder="Wachtwoord" required>
 <button type="submit">Inloggen</button>
@@ -23,7 +25,7 @@
 
 <button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
 
-<div id="chat-container" style="display:flex;">
+<div id="chat-container">
   <div id="chat-section" style="display:none;">
     <ul id="messages"></ul>
     <form id="chat-form" autocomplete="off">
@@ -36,12 +38,16 @@
       <button id="record-btn">🎤 Opnemen</button>
     </div>
   </div>
+
+  <!-- Sidebar vrienden -->
   <div id="friends-section">
     <h3>Vrienden</h3>
     <ul id="friends-list"></ul>
-    <div id="requests-container"></div>
   </div>
 </div>
+
+<!-- Popup vriendschapsverzoeken -->
+<div id="friend-request-popup"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="script.js"></script>

@@ -2,7 +2,7 @@ body{font-family:Arial,sans-serif;background:#121212;color:#eee;display:flex;fle
 body.light{background:#f0f0f0;color:#222;}
 h1{margin-bottom:6px;}
 form{margin:8px 0;}
-#chat-container{display:flex;justify-content:space-between;width:90%;max-width:1000px;}
+#chat-container{display:flex;justify-content:space-between;width:100%;max-width:1200px;}
 #chat-section{width:65%;border:1px solid #333;padding:12px;background:#1e1e1e;border-radius:8px;}
 body.light #chat-section{background:#fff;border-color:#ccc;color:#222;}
 #messages{list-style:none;padding:8px;height:300px;overflow-y:auto;margin:0 0 10px 0;background:rgba(0,0,0,0.05);border-radius:6px;}
@@ -13,10 +13,10 @@ button{background:#6200ee;color:white;cursor:pointer;margin-left:6px;} button:ho
 img{max-width:300px;border-radius:8px;margin-top:6px;display:block;cursor:pointer;}
 iframe,video{margin-top:6px;border-radius:6px;}
 audio{margin-top:6px;display:block;}
-#friends-section{width:30%;border:1px solid #333;padding:12px;background:#1e1e1e;border-radius:8px;display:flex;flex-direction:column;}
+#friends-section{width:250px; border:1px solid #333; padding:12px; background:#1e1e1e; border-radius:8px; display:flex; flex-direction:column; position:fixed; right:20px; top:80px; height:70vh; overflow-y:auto;}
 body.light #friends-section{background:#fff;border-color:#ccc;color:#222;}
-#friends-section ul{list-style:none;padding:0;margin:0 0 10px 0;max-height:400px;overflow-y:auto;}
+#friends-section ul{list-style:none;padding:0;margin:0 0 10px 0;}
 #friends-section li{margin:4px 0;display:flex;justify-content:space-between;}
-#friends-section input,#friends-section button{margin-top:4px;}
-#requests-container div{background:#333;padding:6px;margin:4px;border-radius:6px;}
-body.light #requests-container div{background:#eee;color:#222;}
+#friend-request-popup{position:fixed;top:20px;right:20px;width:250px;z-index:1000;}
+#friend-request-popup div{background:#333;color:#fff;padding:8px;margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;}
+body.light #friend-request-popup div{background:#eee;color:#222;}
