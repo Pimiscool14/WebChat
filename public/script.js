@@ -118,7 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      if (!data.privateTo && data.user === username) {
+      // delete message for main chat or private chat
+      if (data.user === username) {
         if (confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
       }
     });
@@ -279,11 +280,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // populate thread messages
     const key = duoKey(username, friend);
     const msgs = window.privateThreads[key] || [];
-    msgs.forEach(m => renderExistingMessage(m));
+    msgs.forEach(renderExistingMessage);
   }
 
   function renderExistingMessage(data){
-    // reuse renderMessage style but without repeated event binding issues
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
     const userSpan = document.createElement('span'); userSpan.textContent = data.user; userSpan.style.color = stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
@@ -292,6 +292,15 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
     else msgSpan.innerHTML = formatMessage(data.msg);
     li.appendChild(userSpan); li.appendChild(msgSpan);
+
+    // Nieuw: context menu delete voor privé chat
+    li.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (data.user === username) {
+        if (confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
+      }
+    });
+
     messagesList.appendChild(li);
     li.scrollIntoView({ behavior:'smooth', block:'end' });
   }
@@ -300,11 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPrivate = null;
     threadHeader.style.display = 'none';
     messagesList.innerHTML = '';
-    // ask server to resend main history by re-emitting set username
     if (username) socket.emit('set username', username);
   });
 
-  // Prevent leaving while recording
   window.addEventListener('beforeunload', () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
   });
