@@ -23,9 +23,9 @@
 
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
-      <div class="chat-header">
-        <button id="back-main-btn" style="display:none;">← Terug naar algemene chat</button>
-        <h2 id="chat-title">Algemene chat</h2>
+      <div id="thread-header" style="display:none;">
+        <button id="back-to-main">← Terug naar algemene chat</button>
+        <span id="thread-title"></span>
       </div>
 
       <ul id="messages"></ul>
@@ -36,14 +36,18 @@
       </form>
 
       <div class="extra-tools">
-        <label for="photo-input">📷 Foto:</label>
-        <input type="file" id="photo-input" accept="image/*">
-        <button id="photo-send-btn" style="display:none;">Versturen</button>
-        <button id="record-btn">🎤 Opnemen</button>
+        <div class="photo-row">
+          <label for="photo-input">📷 Foto:</label>
+          <input type="file" id="photo-input" accept="image/*">
+          <button id="photo-send-btn" style="display:none;">Versturen</button>
+        </div>
+        <div class="record-row">
+          <button id="record-btn">🎤 Opnemen</button>
+        </div>
       </div>
     </div>
 
-    <aside id="friends-sidebar" style="display:none;">
+    <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
       <div id="requests-list"></div>
 
@@ -52,13 +56,13 @@
         <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
         <button id="add-friend-btn">Verstuur verzoek</button>
       </div>
-      <ul id="chats-list"></ul>
+
+      <ul id="friends-list"></ul>
     </aside>
   </div>
 
   <div id="friend-request-popup"></div>
 
-  <!-- fullscreen viewer -->
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
