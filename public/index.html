@@ -1,51 +1,58 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>WebChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="Style.css">
 </head>
-<body class="dark">
+<body>
   <h1>Welkom bij WebChat</h1>
 
-  <!-- Login/Register -->
   <div id="login-container">
     <h2>Login</h2>
-    <input id="login-username" type="text" placeholder="Gebruikersnaam"><br>
-    <input id="login-password" type="password" placeholder="Wachtwoord"><br>
+    <input id="login-username" type="text" placeholder="Gebruikersnaam">
+    <input id="login-password" type="password" placeholder="Wachtwoord">
     <button id="login-btn">Login</button>
+
     <h2>Account maken</h2>
-    <input id="register-username" type="text" placeholder="Gebruikersnaam"><br>
-    <input id="register-password" type="password" placeholder="Wachtwoord"><br>
+    <input id="register-username" type="text" placeholder="Gebruikersnaam">
+    <input id="register-password" type="password" placeholder="Wachtwoord">
     <button id="register-btn">Registreer</button>
   </div>
 
-  <!-- Chat na inloggen -->
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
       <ul id="messages"></ul>
+
       <form id="chat-form" autocomplete="off">
         <input id="message" type="text" placeholder="Typ hier je bericht..." required>
         <button type="submit">Verstuur</button>
       </form>
-      <div>
+
+      <div class="extra-tools">
+        <label for="photo-input">📷 Foto:</label>
         <input type="file" id="photo-input" accept="image/*">
         <button id="photo-send-btn" style="display:none;">Versturen</button>
         <button id="record-btn">🎤 Opnemen</button>
       </div>
     </div>
 
-    <!-- Sidebar rechts -->
     <aside id="friends-section" style="display:none;">
       <h3>Vrienden</h3>
+
+      <div class="friend-add">
+        <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
+        <button id="add-friend-btn">Verstuur verzoek</button>
+      </div>
+
       <ul id="friends-list"></ul>
     </aside>
   </div>
 
-  <!-- Vriendschapsverzoeken popup -->
   <div id="friend-request-popup"></div>
 
-  <!-- Fullscreen image viewer -->
+  <!-- fullscreen viewer -->
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
