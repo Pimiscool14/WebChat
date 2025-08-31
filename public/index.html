@@ -1,48 +1,52 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WebChat</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebChat</title>
+    <link rel="stylesheet" href="Style.css">
 </head>
 <body>
-<div id="loginScreen">
-  <h2>Welkom bij WebChat</h2>
-  <input type="text" id="username" placeholder="Gebruikersnaam">
-  <button id="loginBtn">Inloggen</button>
-</div>
-
-<div id="chatScreen" class="hidden">
-  <div id="topBar">
-    <span id="welcomeUser"></span>
-    <button id="logoutBtn">Uitloggen</button>
-  </div>
-
-  <div id="friendsSection">
-    <h3>Vrienden</h3>
-    <ul id="friendsList"></ul>
-    <h3>Verzoeken</h3>
-    <ul id="friendRequests"></ul>
-  </div>
-
-  <div id="chatSection">
-    <div id="generalChat">
-      <h3>Algemene Chat</h3>
-      <div id="messages"></div>
-      <input type="text" id="messageInput" placeholder="Typ een bericht...">
-      <button id="sendBtn">Verstuur</button>
+    <div id="loginSection">
+        <h2>Welkom bij WebChat</h2>
+        <form id="loginForm">
+            <input type="text" name="username" placeholder="Gebruikersnaam" required>
+            <input type="password" name="password" placeholder="Wachtwoord" required>
+            <button type="submit">Inloggen</button>
+        </form>
+        <form id="registerForm">
+            <input type="text" name="username" placeholder="Nieuwe gebruikersnaam" required>
+            <input type="password" name="password" placeholder="Wachtwoord" required>
+            <button type="submit">Registreren</button>
+        </form>
     </div>
 
-    <div id="privateChat" class="hidden">
-      <h3>Privéchat met <span id="privateUser"></span></h3>
-      <div id="privateMessages"></div>
-      <input type="text" id="privateInput" placeholder="Typ een bericht...">
-      <button id="privateSendBtn">Verstuur</button>
-    </div>
-  </div>
-</div>
+    <div id="chatContainer" style="display:none;">
+        <div id="header">
+            <span id="welcomeText"></span>
+            <button id="logoutBtn">Uitloggen</button>
+        </div>
 
-<script src="script.js"></script>
+        <div id="main">
+            <div id="friendsPanel">
+                <h3>Vrienden</h3>
+                <div id="friendsList"></div>
+                <h3>Vrienden Verzoeken</h3>
+                <div id="requestsList"></div>
+            </div>
+
+            <div id="chatPanel">
+                <div id="messages"></div>
+                <input type="text" id="messageInput" placeholder="Typ een bericht...">
+                <input type="file" id="fileInput">
+                <button id="sendBtn">Verstuur</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" style="display:none;"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
