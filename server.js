@@ -1,139 +1,79 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const bodyParser = require("body-parser");
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(bodyParser.json());
+const db = new Database("webchat.db");
+
+// Maak tabellen als ze nog niet bestaan
+db.prepare(`CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  password TEXT
+)`).run();
+
+db.prepare(`CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender TEXT,
+  receiver TEXT,
+  message TEXT,
+  type TEXT,
+  timestamp TEXT
+)`).run();
+
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
 
-// Database setup
-const db = new sqlite3.Database("chat.db");
-
-db.serialize(() => {
-  db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)");
-  db.run(`CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user TEXT,
-    msg TEXT,
-    type TEXT,
-    room TEXT,
-    privateTo TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS friends (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user TEXT,
-    friend TEXT,
-    status TEXT
-  )`);
-});
-
-// Online users
-const online = new Map();
-
-/* -------------------- Account systeem -------------------- */
+// Registratie endpoint
 app.post("/register", (req, res) => {
   const { username, password } = req.body;
-  db.run(
-    "INSERT INTO users (username,password) VALUES (?,?)",
-    [username, password],
-    (err) => {
-      if (err) return res.status(400).json({ error: "Username already exists" });
-      res.json({ success: true });
-    }
-  );
+  try {
+    db.prepare("INSERT INTO users (username, password) VALUES (?, ?)").run(username, password);
+    res.json({ success: true });
+  } catch {
+    res.json({ success: false, error: "Gebruiker bestaat al" });
+  }
 });
 
+// Login endpoint
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  db.get(
-    "SELECT * FROM users WHERE username=? AND password=?",
-    [username, password],
-    (err, row) => {
-      if (row) res.json({ success: true });
-      else res.status(400).json({ error: "Invalid credentials" });
-    }
-  );
+  const user = db.prepare("SELECT * FROM users WHERE username=? AND password=?").get(username, password);
+  if (user) res.json({ success: true });
+  else res.json({ success: false, error: "Ongeldige login" });
 });
 
-/* -------------------- Socket.IO Chat systeem -------------------- */
+// Alle berichten ophalen (algemeen en privé)
+app.get("/messages/:user", (req, res) => {
+  const { user } = req.params;
+  const messages = db.prepare(`
+    SELECT * FROM messages
+    WHERE receiver IS NULL OR receiver=? OR sender=?
+    ORDER BY id ASC
+  `).all(user, user);
+  res.json(messages);
+});
+
+// Berichten opslaan via socket.io
 io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
-
-  socket.on("set username", (uname) => {
-    socket.username = uname;
-    online.set(uname, socket.id);
-
-    // Main chat geschiedenis
-    db.all("SELECT * FROM messages WHERE room='main' ORDER BY id ASC", [], (err, rows) => {
-      socket.emit("chat history", rows);
-    });
-
-    // Privégeschiedenis
-    db.all("SELECT * FROM messages WHERE room='private' AND (user=? OR privateTo=?) ORDER BY id ASC", [uname, uname], (err, rows) => {
-      socket.emit("load private chats", rows);
-    });
+  socket.on("sendMessage", ({ sender, receiver, message, type }) => {
+    const timestamp = new Date().toISOString();
+    db.prepare("INSERT INTO messages (sender, receiver, message, type, timestamp) VALUES (?, ?, ?, ?, ?)")
+      .run(sender, receiver || null, message, type, timestamp);
+    io.emit("receiveMessage", { sender, receiver, message, type, timestamp });
   });
 
-  /* -------------------- Algemene chat -------------------- */
-  socket.on("chat message", (msg) => {
-    db.run("INSERT INTO messages (user,msg,type,room) VALUES (?,?,?,?)", [socket.username, msg, "text", "main"], function() {
-      io.emit("chat message", { id: this.lastID, user: socket.username, msg, type: "text" });
-    });
-  });
-
-  /* -------------------- Privé chat -------------------- */
-  socket.on("private message", (to, msg) => {
-    db.run("INSERT INTO messages (user,msg,type,room,privateTo) VALUES (?,?,?,?,?)", [socket.username, msg, "text", "private", to], function() {
-      const msgData = { id: this.lastID, user: socket.username, msg, type: "text", privateTo: to };
-      const toSocket = online.get(to);
-      if (toSocket) io.to(toSocket).emit("private message", msgData);
-      socket.emit("private message", msgData);
-    });
-  });
-
-  /* -------------------- Berichten verwijderen -------------------- */
-  socket.on("delete message", (id) => {
-    db.get("SELECT * FROM messages WHERE id=?", [id], (err, row) => {
-      if (row && row.user === socket.username) {
-        db.run("DELETE FROM messages WHERE id=?", [id]);
-        if (row.room === "main") io.emit("delete message", id);
-        else if (row.room === "private") {
-          const toSocket = online.get(row.privateTo);
-          if (toSocket) io.to(toSocket).emit("delete message", id);
-          socket.emit("delete message", id);
-        }
-      }
-    });
-  });
-
-  /* -------------------- Vrienden systeem -------------------- */
-  socket.on("friend request", (to) => {
-    db.run("INSERT INTO friends (user,friend,status) VALUES (?,?,?)", [socket.username, to, "pending"]);
-    const toSocket = online.get(to);
-    if (toSocket) io.to(toSocket).emit("friend request", { from: socket.username });
-  });
-
-  socket.on("accept request", (from) => {
-    db.run("UPDATE friends SET status='accepted' WHERE user=? AND friend=?", [from, socket.username]);
-    db.run("INSERT INTO friends (user,friend,status) VALUES (?,?,?)", [socket.username, from, "accepted"]);
-    const fromSocket = online.get(from);
-    if (fromSocket) io.to(fromSocket).emit("request accepted", { from: socket.username });
-  });
-
-  socket.on("disconnect", () => {
-    if (socket.username) online.delete(socket.username);
-    console.log("Socket disconnected:", socket.id);
+  socket.on("deleteMessage", ({ id, sender }) => {
+    const msg = db.prepare("SELECT * FROM messages WHERE id=?").get(id);
+    if (msg && msg.sender === sender) {
+      db.prepare("DELETE FROM messages WHERE id=?").run(id);
+      io.emit("deleteMessage", { id });
+    }
   });
 });
 
-/* -------------------- Server starten -------------------- */
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+server.listen(3000, () => console.log("Server draait op http://localhost:3000"));

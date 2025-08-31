@@ -1,20 +1,52 @@
-body { font-family: Arial, sans-serif; margin:0; padding:20px; background:#121212; color:#eee; }
-body.light { background:#f0f0f0; color:#222; }
-
-h1 { text-align:center; }
-
-#loginForm, #chatContainer { max-width:400px; margin:20px auto; display:flex; flex-direction:column; gap:10px; }
-input { padding:8px; border-radius:6px; border:1px solid #444; }
-button { padding:8px; border-radius:6px; border:none; background:#6200ee; color:white; cursor:pointer; }
-button:hover { background:#3700b3; }
-
-.messages { border:1px solid #333; padding:10px; height:400px; overflow-y:auto; background:#1e1e1e; border-radius:8px; }
-body.light .messages { background:#fff; border-color:#ccc; color:#222; }
-
-.message { background:#2a2a2a; margin-bottom:6px; border-radius:6px; padding:6px; position:relative; }
-body.light .message { background:#eee; color:#222; }
-
-.notification {
-  background:#333; color:white; padding:10px 20px; border-radius:10px; font-weight:bold; text-align:center;
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f0f2f5;
+  margin: 0;
+  padding: 0;
 }
-body.light .notification { background:#ddd; color:#222; }
+
+.hidden { display: none; }
+
+#loginScreen, #chatScreen {
+  width: 90%;
+  max-width: 600px;
+  margin: 50px auto;
+}
+
+#topBar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+#messages, #privateMessages {
+  border: 1px solid #ccc;
+  background: #fff;
+  height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+#friendsSection, #chatSection {
+  margin-bottom: 20px;
+}
+
+.message {
+  margin-bottom: 8px;
+  padding: 5px;
+  border-radius: 4px;
+  background-color: #e2e2e2;
+  position: relative;
+}
+
+.message.own {
+  background-color: #d1ffd1;
+}
+
+.deleteBtn {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  cursor: pointer;
+  color: red;
+}

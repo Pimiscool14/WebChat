@@ -1,74 +1,139 @@
-const socket = io();
-let currentChat = "main"; 
-let username = null;
+// ------------------- VARIABLES -------------------
+let currentUser = localStorage.getItem("currentUser") || "";
+let generalMessages = JSON.parse(localStorage.getItem("generalMessages") || "[]");
+let privateMessages = JSON.parse(localStorage.getItem("privateMessages") || "{}");
+let currentPrivate = null;
 
-function showNotification(text) {
-  const notif = document.createElement("div");
-  notif.className = "notification fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2";
-  notif.innerText = text;
-  document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3000);
+// DOM ELEMENTS
+const messagesDiv = document.getElementById("messages");
+const privateMessagesDiv = document.getElementById("privateMessages");
+const privateChatDiv = document.getElementById("privateChat");
+
+// ------------------- RENDERING -------------------
+function renderMessages() {
+    messagesDiv.innerHTML = "";
+    generalMessages.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "message";
+        div.innerHTML = formatMessage(msg);
+        messagesDiv.appendChild(div);
+    });
 }
 
-function renderMessage(container, data) {
-  const msg = document.createElement("div");
-  msg.className = "message";
-  msg.dataset.id = data.id;
-  msg.innerText = `${data.user}: ${data.msg}`;
-
-  if (data.user === username) {
-    const delBtn = document.createElement("button");
-    delBtn.innerText = "×";
-    delBtn.style.position = "absolute";
-    delBtn.style.right = "5px";
-    delBtn.style.top = "2px";
-    delBtn.onclick = () => socket.emit("delete message", data.id);
-    msg.appendChild(delBtn);
-  }
-
-  container.appendChild(msg);
+function renderPrivateMessages() {
+    privateMessagesDiv.innerHTML = "";
+    if (!currentPrivate) return;
+    privateMessages[currentPrivate].forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "message";
+        div.innerHTML = formatMessage(msg);
+        privateMessagesDiv.appendChild(div);
+    });
 }
 
-document.getElementById("registerBtn").onclick = async () => {
-  const uname = document.getElementById("username").value;
-  const pwd = document.getElementById("password").value;
+function formatMessage(msg) {
+    // Tekst
+    if (msg.type === "text") return `<b>${msg.user}:</b> ${msg.content}`;
+    // Afbeelding
+    if (msg.type === "image") return `<b>${msg.user}:</b><br><img src="${msg.content}" style="max-width:200px;">`;
+    // Audio
+    if (msg.type === "audio") return `<b>${msg.user}:</b><br><audio controls src="${msg.content}"></audio>`;
+    // Video/MP4
+    if (msg.type === "video") return `<b>${msg.user}:</b><br><video controls src="${msg.content}" style="max-width:300px;"></video>`;
+    // YouTube/Vimeo/TikTok
+    if (msg.type === "embed") return `<b>${msg.user}:</b><br>${msg.content}`;
+}
 
-  const res = await fetch("/register", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ username:uname, password:pwd })
-  });
-  if (res.ok) showNotification("Registratie gelukt!");
-  else showNotification("Gebruiker bestaat al!");
-};
+// ------------------- SEND MESSAGE -------------------
+function sendMessage(content, type="text", to=null) {
+    const msg = { user: currentUser, type, content };
+    if (!to) {
+        generalMessages.push(msg);
+        localStorage.setItem("generalMessages", JSON.stringify(generalMessages));
+        renderMessages();
+    } else {
+        if (!privateMessages[to]) privateMessages[to] = [];
+        privateMessages[to].push(msg);
+        localStorage.setItem("privateMessages", JSON.stringify(privateMessages));
+        renderPrivateMessages();
+    }
+}
 
-document.getElementById("loginBtn").onclick = async () => {
-  const uname = document.getElementById("username").value;
-  const pwd = document.getElementById("password").value;
+// ------------------- DELETE MENU -------------------
+function setupDeleteMenu() {
+    let overlay = document.createElement("div");
+    overlay.id = "deleteOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.display = "none";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.background = "rgba(0,0,0,0.4)";
+    overlay.style.zIndex = "1000";
 
-  const res = await fetch("/login", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ username:uname, password:pwd })
-  });
+    let btn = document.createElement("button");
+    btn.textContent = "Verwijderen";
+    btn.style.padding = "20px";
+    btn.style.fontSize = "18px";
+    btn.style.cursor = "pointer";
+    overlay.appendChild(btn);
+    document.body.appendChild(overlay);
 
-  if (res.ok) {
-    username = uname;
-    localStorage.setItem("username", uname);
-    socket.emit("set username", uname);
-    document.getElementById("loginForm").style.display="none";
-    document.getElementById("chatContainer").style.display="flex";
-    showNotification("Inloggen gelukt!");
-  } else showNotification("Ongeldige gegevens!");
-};
+    let targetMsg = null;
 
-// Auto login
-window.addEventListener("load", () => {
-  const savedUser = localStorage.getItem("username");
-  if (savedUser) {
-    username = savedUser;
-    socket.emit("set username", savedUser);
-    document.getElementById("loginForm").style.display="none";
-    document.getElementById("chatContainer").style.display="flex";
-    showNotification("Welkom terug, "+savedUser);
-  }
+    // Algemene chat
+    messagesDiv.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        const msgDiv = e.target.closest(".message");
+        if (!msgDiv) return;
+        const index = Array.from(messagesDiv.children).indexOf(msgDiv);
+        const msgData = generalMessages[index];
+        if (msgData.user !== currentUser) return;
+        targetMsg = index;
+        overlay.style.display = "flex";
+    });
+
+    // Privé chat
+    privateMessagesDiv.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        const msgDiv = e.target.closest(".message");
+        if (!msgDiv || !currentPrivate) return;
+        const index = Array.from(privateMessagesDiv.children).indexOf(msgDiv);
+        const msgData = privateMessages[currentPrivate][index];
+        if (msgData.user !== currentUser) return;
+        targetMsg = index;
+        overlay.style.display = "flex";
+    });
+
+    btn.addEventListener("click", () => {
+        if (targetMsg === null) return;
+        overlay.style.display = "none";
+
+        if (privateChatDiv.classList.contains("hidden")) {
+            generalMessages.splice(targetMsg, 1);
+            localStorage.setItem("generalMessages", JSON.stringify(generalMessages));
+            renderMessages();
+        } else {
+            privateMessages[currentPrivate].splice(targetMsg, 1);
+            localStorage.setItem("privateMessages", JSON.stringify(privateMessages));
+            renderPrivateMessages();
+        }
+        targetMsg = null;
+    });
+
+    overlay.addEventListener("click", e => {
+        if (e.target === overlay) {
+            overlay.style.display = "none";
+            targetMsg = null;
+        }
+    });
+}
+
+setupDeleteMenu();
+
+// ------------------- INIT -------------------
+renderMessages();
+renderPrivateMessages();
