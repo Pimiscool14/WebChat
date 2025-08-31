@@ -17,9 +17,9 @@ if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify(
 if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
 if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
-function loadJSON(p){ return JSON.parse(fs.readFileSync(p)); }
-function saveJSON(p, d){ fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
-function duoKey(a,b){ return [a,b].sort().join('_'); }
+function loadJSON(path) { return JSON.parse(fs.readFileSync(path)); }
+function saveJSON(path, data) { fs.writeFileSync(path, JSON.stringify(data, null, 2)); }
+function duoKey(a,b) { return [a,b].sort().join('_'); }
 
 const online = new Map();
 
@@ -81,12 +81,14 @@ app.post('/respondFriendRequest', (req, res) => {
   if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
 
   receiver.friendRequests = (receiver.friendRequests || []).filter(x => x !== from);
+
   if (accept) {
     receiver.friends = receiver.friends || [];
     sender.friends = sender.friends || [];
     if (!receiver.friends.includes(from)) receiver.friends.push(from);
     if (!sender.friends.includes(to)) sender.friends.push(to);
   }
+
   saveJSON(accountsFile, accounts);
 
   const rs = online.get(to);
@@ -97,26 +99,25 @@ app.post('/respondFriendRequest', (req, res) => {
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
-// SOCKET.IO
-io.on('connection', socket => {
-  console.log('Socket connected', socket.id);
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
 
-  socket.on('set username', username => {
+  socket.on('set username', (username) => {
     socket.username = username;
     online.set(username, socket.id);
 
-    // main history
     const main = loadJSON(mainChatFile);
     socket.emit('chat history', main);
 
-    // private threads for this user
     const allPrivate = loadJSON(privateChatFile);
     const userThreads = {};
-    for (const k in allPrivate) if (k.includes(username)) userThreads[k] = allPrivate[k];
+    for (const k in allPrivate) {
+      if (k.includes(username)) userThreads[k] = allPrivate[k];
+    }
     socket.emit('load private chats', userThreads);
   });
 
-  socket.on('chat message', data => {
+  socket.on('chat message', (data) => {
     const msg = { id: Date.now(), ...data };
 
     if (data.privateTo) {
@@ -143,8 +144,7 @@ io.on('connection', socket => {
     }
   });
 
-  // DELETE main chat message (unchanged)
-  socket.on('delete message', id => {
+  socket.on('delete message', (id) => {
     let allMain = loadJSON(mainChatFile);
     const msg = allMain.find(m => m.id === id);
     if (!msg || msg.user !== socket.username) return;
@@ -153,28 +153,9 @@ io.on('connection', socket => {
     io.emit('message deleted', id);
   });
 
-  // DELETE private message (new)
-  socket.on('delete private message', ({ id, key }) => {
-    const allPrivate = loadJSON(privateChatFile);
-    if (!allPrivate[key]) return;
-    const msg = allPrivate[key].find(m => m.id === id);
-    if (!msg) return;
-    if (msg.user !== socket.username) return; // only the author can delete their private message
-
-    allPrivate[key] = allPrivate[key].filter(m => m.id !== id);
-    saveJSON(privateChatFile, allPrivate);
-
-    // emit to the two participants
-    const [a, b] = key.split('_');
-    const aSock = online.get(a);
-    const bSock = online.get(b);
-    if (aSock) io.to(aSock).emit('private message deleted', { id, key });
-    if (bSock) io.to(bSock).emit('private message deleted', { id, key });
-  });
-
   socket.on('disconnect', () => {
     if (socket.username) online.delete(socket.username);
-    console.log('Socket disconnected', socket.id);
+    console.log('Socket disconnected:', socket.id);
   });
 });
 

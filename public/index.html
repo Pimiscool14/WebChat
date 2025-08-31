@@ -1,10 +1,10 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>WebChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="Style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="Style.css" />
 </head>
 <body>
   <h1>Welkom bij WebChat</h1>
@@ -23,6 +23,10 @@
 
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
+      <div id="chat-header">
+        <button id="back-to-main" style="display:none;">⬅ Terug naar algemene chat</button>
+      </div>
+
       <ul id="messages"></ul>
 
       <form id="chat-form" autocomplete="off">
@@ -34,19 +38,15 @@
         <label for="photo-input">📷 Foto:</label>
         <input type="file" id="photo-input" accept="image/*">
         <button id="photo-send-btn" style="display:none;">Versturen</button>
-
-        <!-- spraak knop nu onder foto -->
-        <div style="margin-top:10px;">
-          <button id="record-btn">🎤 Opnemen</button>
-        </div>
+        <button id="record-btn">🎤 Opnemen</button>
       </div>
     </div>
 
     <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
-      <div id="friend-request-popup"></div>
+      <div id="requests-container"></div>
 
-      <h3 style="margin-top:16px;">Chats</h3>
+      <h3>Chats</h3>
       <div class="friend-add">
         <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
         <button id="add-friend-btn">Verstuur verzoek</button>
@@ -55,6 +55,8 @@
       <ul id="friends-list"></ul>
     </aside>
   </div>
+
+  <div id="friend-request-popup"></div>
 
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
