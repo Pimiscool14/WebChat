@@ -8,67 +8,20 @@
 </head>
 <body>
   <h1>Welkom bij WebChat</h1>
-  <button id="logout-btn">Uitloggen</button>
 
-  <div id="login-container">
-    <h2>Login</h2>
-    <input id="login-username" type="text" placeholder="Gebruikersnaam">
-    <input id="login-password" type="password" placeholder="Wachtwoord">
-    <button id="login-btn">Login</button>
-
-    <h2>Account maken</h2>
-    <input id="register-username" type="text" placeholder="Gebruikersnaam">
-    <input id="register-password" type="password" placeholder="Wachtwoord">
-    <button id="register-btn">Registreer</button>
+  <div id="loginForm">
+    <input type="text" id="username" placeholder="Gebruikersnaam">
+    <input type="password" id="password" placeholder="Wachtwoord">
+    <button id="loginBtn">Login</button>
+    <button id="registerBtn">Registreer</button>
   </div>
 
-  <div id="chat-container" style="display:none;">
-    <div id="chat-section">
-      <div id="thread-header" style="display:none;">
-        <button id="back-to-main">← Terug naar algemene chat</button>
-        <span id="thread-title"></span>
-      </div>
-
-      <ul id="messages"></ul>
-
-      <form id="chat-form" autocomplete="off">
-        <input id="message" type="text" placeholder="Typ hier je bericht..." required>
-        <button type="submit">Verstuur</button>
-      </form>
-
-      <div class="extra-tools">
-        <div class="photo-row">
-          <label for="photo-input">📷 Foto:</label>
-          <input type="file" id="photo-input" accept="image/*">
-          <button id="photo-send-btn" style="display:none;">Versturen</button>
-        </div>
-        <div class="record-row">
-          <button id="record-btn">🎤 Opnemen</button>
-        </div>
-      </div>
-    </div>
-
-    <aside id="friends-section" style="display:none;">
-      <h3>Verzoeken</h3>
-      <div id="requests-list"></div>
-
-      <h3>Chats</h3>
-      <div class="friend-add">
-        <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
-        <button id="add-friend-btn">Verstuur verzoek</button>
-      </div>
-
-      <ul id="friends-list"></ul>
-    </aside>
+  <div id="chatContainer" style="display:none;">
+    <button id="logoutBtn">Uitloggen</button>
+    <div id="messages" class="messages"></div>
+    <input type="text" id="messageInput" placeholder="Typ hier...">
+    <button id="sendBtn">Verstuur</button>
   </div>
-
-  <div id="friend-request-popup"></div>
-
-  <div id="fullscreen-viewer" style="display:none;">
-    <img id="fullscreen-img" src="" alt="preview">
-  </div>
-
-  <div id="notification"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
