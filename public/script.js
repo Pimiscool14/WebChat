@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
   let username = "";
   let mediaRecorder, audioChunks = [];
-  let currentPrivate = null;
+  let currentPrivate = null; // null = main chat
   window.privateThreads = {};
 
   // DOM refs
@@ -17,23 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const chatContainer = document.getElementById('chat-container');
   const chatSection = document.getElementById('chat-section');
-  const chatHeader = document.getElementById('chat-header');
-  const backToMainBtn = document.getElementById('back-to-main');
-  const chatTitle = document.getElementById('chat-title');
   const chatForm = document.getElementById('chat-form');
   const messageInput = document.getElementById('message');
   const messagesList = document.getElementById('messages');
+  const backToMainBtn = document.getElementById('back-to-main');
 
   const photoInput = document.getElementById('photo-input');
   const photoSendBtn = document.getElementById('photo-send-btn');
   const recordBtn = document.getElementById('record-btn');
 
   const friendsSection = document.getElementById('friends-section');
-  const friendsList = document.getElementById('friends-list');
+  const requestsContainer = document.getElementById('requests-container');
+  const chatsList = document.getElementById('chats-list');
   const addFriendInput = document.getElementById('add-friend-username');
   const addFriendBtn = document.getElementById('add-friend-btn');
-  const requestsArea = document.getElementById('requests-area');
-  const chatsList = document.getElementById('chats-list');
 
   const friendRequestPopup = document.getElementById('friend-request-popup');
 
@@ -66,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // REGISTER
+  // Register
   registerBtn.addEventListener('click', async () => {
     const user = (registerUsername.value||'').trim();
     const pass = (registerPassword.value||'').trim();
@@ -79,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { alert('Fout: ' + err.message); }
   });
 
-  // LOGIN
+  // Login
   loginBtn.addEventListener('click', async () => {
     const user = (loginUsername.value||'').trim();
     const pass = (loginPassword.value||'').trim();
@@ -98,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { alert('Fout: ' + err.message); }
   });
 
-  // RENDER MESSAGE (general)
+  // Render message (used for both main and private display)
   function renderMessage(data){
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
@@ -107,12 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
     userSpan.style.color = stringToColor(data.user);
     userSpan.style.fontWeight = 'bold';
     userSpan.style.marginRight = '6px';
+
     const msgSpan = document.createElement('span');
     if (data.type === 'image') msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
     else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
     else msgSpan.innerHTML = formatMessage(data.msg);
-    li.appendChild(userSpan); li.appendChild(msgSpan);
 
+    li.appendChild(userSpan);
+    li.appendChild(msgSpan);
+
+    // delete only allowed for main chat and only by owner
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       if (!data.privateTo && data.user === username) {
@@ -121,58 +122,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     messagesList.appendChild(li);
-    li.scrollIntoView({ behavior:'smooth', block:'end' });
+    li.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
+  // Socket handlers
   socket.on('chat history', (msgs) => {
     if (currentPrivate !== null) return;
     messagesList.innerHTML = '';
-    (msgs||[]).forEach(renderMessage);
-    chatTitle.textContent = 'Algemene chat';
-    backToMainBtn.style.display = 'none';
+    (msgs || []).forEach(renderMessage);
   });
-
   socket.on('chat message', (msg) => { if (currentPrivate === null) renderMessage(msg); });
-  socket.on('message deleted', (id) => { const el = document.getElementById(`msg-${id}`); if (el) el.remove(); });
+  socket.on('message deleted', id => { const el = document.getElementById(`msg-${id}`); if (el) el.remove(); });
 
   socket.on('load private chats', (threads) => {
     window.privateThreads = threads || {};
-    // rebuild chats list from threads (only threads involving you)
-    rebuildChatsList();
+    if (currentPrivate) openPrivateChat(currentPrivate);
   });
 
   socket.on('private message', (msg) => {
     const key = duoKey(msg.user, msg.privateTo || username);
     if (!window.privateThreads[key]) window.privateThreads[key] = [];
     window.privateThreads[key].push(msg);
-    rebuildChatsList();
-    if (currentPrivate && duoKey(username, currentPrivate) === key) {
-      renderMessage(msg);
-      chatTitle.textContent = `Privé met ${currentPrivate}`;
-      backToMainBtn.style.display = 'inline-block';
-    }
+    if (currentPrivate && duoKey(username, currentPrivate) === key) renderMessage(msg);
   });
 
-  // SEND message
+  // Send message
   chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!username) return alert('Log eerst in');
     const txt = (messageInput.value||'').trim();
     if (!txt) return;
-    socket.emit('chat message', { user: username, msg: txt, type:'text', privateTo: currentPrivate });
+    socket.emit('chat message', { user: username, msg: txt, type: 'text', privateTo: currentPrivate });
     messageInput.value = '';
   });
 
-  // photo uploader
-  photoInput.addEventListener('change', () => { photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; });
+  // Photo upload
+  photoInput.addEventListener('change', () => photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none');
   photoSendBtn.addEventListener('click', () => {
     const file = photoInput.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type:'image', privateTo: currentPrivate });
+    reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type: 'image', privateTo: currentPrivate });
     reader.readAsDataURL(file);
-    photoInput.value = '';
-    photoSendBtn.style.display = 'none';
+    photoInput.value = ''; photoSendBtn.style.display = 'none';
   });
 
   // fullscreen viewer
@@ -182,10 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fullscreenViewer.style.display = 'flex';
     }
   });
-  fullscreenViewer.addEventListener('click', () => {
-    fullscreenViewer.style.display = 'none';
-    fullscreenImg.src = '';
-  });
+  fullscreenViewer.addEventListener('click', () => { fullscreenViewer.style.display = 'none'; fullscreenImg.src = ''; });
 
   // voice
   recordBtn.addEventListener('click', async () => {
@@ -211,63 +200,57 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { alert('Opname fout: ' + err.message); }
   });
 
-  // FRIENDS / REQUESTS
-  function showRequestElement(from) {
-    const el = document.createElement('div');
-    el.className = 'req';
-    el.innerHTML = `<span>${from}</span>`;
+  // Friends: load -> show requests on top, chats (friends) below
+  function showRequestItem(from) {
+    const div = document.createElement('div');
+    div.className = 'request-item';
+    const span = document.createElement('span'); span.textContent = `Verzoek van ${from}`;
     const actions = document.createElement('div');
     const acc = document.createElement('button'); acc.textContent = 'Accepteer';
     const rej = document.createElement('button'); rej.textContent = 'Weiger';
-    acc.onclick = () => respondFriendRequest(from, true, el);
-    rej.onclick = () => respondFriendRequest(from, false, el);
+    acc.onclick = () => respondRequest(from, true, div);
+    rej.onclick = () => respondRequest(from, false, div);
     actions.appendChild(acc); actions.appendChild(rej);
-    el.appendChild(actions);
-    requestsArea.appendChild(el);
+    div.appendChild(span); div.appendChild(actions);
+    requestsContainer.appendChild(div);
   }
 
-  function respondFriendRequest(from, accept, element) {
+  function respondRequest(from, accept, el) {
     fetch('/respondFriendRequest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from, to: username, accept }) })
-      .then(r=>r.json()).then(()=>{ if (element) element.remove(); loadFriends(); })
-      .catch(()=>{});
+      .then(r => r.json()).then(() => { if (el) el.remove(); loadFriends(); }).catch(()=>{});
   }
 
-  async function loadFriends(){
+  function loadFriends() {
     if (!username) return;
-    try {
-      const res = await fetch(`/getFriends/${username}`);
-      const data = await res.json();
-      // requests
-      requestsArea.innerHTML = '';
-      (data.friendRequests || []).forEach(r => showRequestElement(r));
-
-      // friends list
-      friendsList.innerHTML = '';
+    fetch(`/getFriends/${username}`).then(r=>r.json()).then(data=>{
+      requestsContainer.innerHTML = '';
+      chatsList.innerHTML = '';
+      (data.friendRequests || []).forEach(showRequestItem);
       (data.friends || []).forEach(f => {
         const li = document.createElement('li');
         const name = document.createElement('span'); name.textContent = f;
-        const chatBtn = document.createElement('button'); chatBtn.textContent = '💬'; chatBtn.title = `Privé met ${f}`; chatBtn.onclick = () => openPrivateChat(f);
-        li.appendChild(name); li.appendChild(chatBtn);
-        friendsList.appendChild(li);
+        const openBtn = document.createElement('button'); openBtn.textContent = 'Open'; openBtn.onclick = () => openPrivateChat(f);
+        li.appendChild(name); li.appendChild(openBtn);
+        chatsList.appendChild(li);
       });
-
-      rebuildChatsList();
-    } catch (err) {}
+    }).catch(()=>{});
   }
 
   socket.on('friend request', ({ from }) => {
-    // popup and requests area
-    showRequestElement(from);
-    // small popup on top-right
-    const popup = document.createElement('div');
-    popup.className = 'popup';
-    popup.innerHTML = `<span>Verzoek van ${from}</span><div class="actions"><button class="acc">Accepteer</button><button class="rej">Weiger</button></div>`;
+    // show popup
+    const popup = document.createElement('div'); popup.className = 'popup';
+    const txt = document.createElement('span'); txt.textContent = `Verzoek van ${from}`;
+    const actions = document.createElement('div'); const acc = document.createElement('button'); acc.textContent='Accepteer'; const rej = document.createElement('button'); rej.textContent='Weiger';
+    acc.onclick = () => { respondRequest(from, true, popup); };
+    rej.onclick = () => { respondRequest(from, false, popup); };
+    actions.appendChild(acc); actions.appendChild(rej);
+    popup.appendChild(txt); popup.appendChild(actions);
     friendRequestPopup.appendChild(popup);
-    popup.querySelector('.acc').onclick = () => { respondFriendRequest(from, true, null); popup.remove(); };
-    popup.querySelector('.rej').onclick = () => { respondFriendRequest(from, false, null); popup.remove(); };
+    // also refresh list locally
+    loadFriends();
   });
 
-  socket.on('friends updated', () => { loadFriends(); });
+  socket.on('friends updated', () => loadFriends());
 
   addFriendBtn.addEventListener('click', () => {
     const to = (addFriendInput.value||'').trim();
@@ -275,37 +258,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!username) return alert('Log eerst in');
     if (to === username) return alert('Je kunt jezelf geen verzoek sturen');
     fetch('/sendFriendRequest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from: username, to }) })
-      .then(r=>r.json()).then(d => { alert(d.message || d.error); addFriendInput.value = ''; });
+      .then(r=>r.json()).then(d => { alert(d.message || d.error); addFriendInput.value=''; })
+      .catch(e => alert('Fout: ' + e.message));
   });
 
-  // CHATS list (recent private threads)
-  function rebuildChatsList() {
-    chatsList.innerHTML = '';
-    // list keys from window.privateThreads where partner != username
-    const keys = Object.keys(window.privateThreads || {});
-    keys.forEach(k => {
-      const [a,b] = k.split('_');
-      const partner = a === username ? b : a;
-      const li = document.createElement('li');
-      const span = document.createElement('span'); span.textContent = partner;
-      const openBtn = document.createElement('button'); openBtn.textContent = 'Open'; openBtn.onclick = () => openPrivateChat(partner);
-      li.appendChild(span); li.appendChild(openBtn);
-      chatsList.appendChild(li);
-    });
-  }
-
-  // open private chat
+  // open private chat with friend (only if friend)
   function openPrivateChat(friend) {
     currentPrivate = friend;
     messagesList.innerHTML = '';
+    backToMainBtn.style.display = 'inline-block';
     const key = duoKey(username, friend);
     const msgs = window.privateThreads[key] || [];
-    msgs.forEach(renderPrivateMessage);
-    chatTitle.textContent = `Privé met ${friend}`;
-    backToMainBtn.style.display = 'inline-block';
+    msgs.forEach(renderMessageForPrivate);
   }
 
-  function renderPrivateMessage(data) {
+  function renderMessageForPrivate(data) {
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
     const userSpan = document.createElement('span'); userSpan.textContent = data.user; userSpan.style.color = stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
@@ -318,18 +285,16 @@ document.addEventListener('DOMContentLoaded', () => {
     li.scrollIntoView({ behavior:'smooth', block:'end' });
   }
 
-  // Back to main chat button
   backToMainBtn.addEventListener('click', () => {
     currentPrivate = null;
-    messagesList.innerHTML = '';
-    chatTitle.textContent = 'Algemene chat';
     backToMainBtn.style.display = 'none';
-    // ask server to resend main history
-    socket.emit('request main history');
+    messagesList.innerHTML = '';
+    // request main chat again by re-sending username (server will re-send chat history)
+    if (username) socket.emit('set username', username);
   });
 
-  // helper render used by both private and main handlers
-  function renderMessage(data){
+  // helper used by socket private message handler
+  function renderMessage(data){ // same as renderMessageForPrivate but for main/private unified usage
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
     const userSpan = document.createElement('span'); userSpan.textContent = data.user; userSpan.style.color = stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
@@ -348,8 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     li.scrollIntoView({ behavior:'smooth', block:'end' });
   }
 
-  // Keep both render functions in sync by assigning
-  window.renderMessage = renderMessage;
-  window.renderPrivateMessage = renderPrivateMessage;
+  // make sure renderMessageForPrivate and renderMessage behave the same visually
+  // kept both for clarity: socket handlers call renderMessage for main, and private open uses renderMessageForPrivate
 
 });

@@ -34,14 +34,12 @@ h1 { margin-bottom: 12px; }
 }
 body.light #chat-section { background:#fff; border-color:#ccc; color:#222; }
 
-.chat-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
-#chat-header #back-to-main { background:#444; color:#fff; padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
-#chat-header #chat-title { font-weight:bold; }
+#chat-header { display:flex; justify-content:flex-start; margin-bottom:8px; }
 
 #messages {
   list-style:none;
   padding:8px;
-  height: 280px;
+  height: 320px;
   overflow-y:auto;
   margin:0 0 10px 0;
   background: rgba(0,0,0,0.05);
@@ -81,19 +79,16 @@ audio { margin-top:6px; display:block; }
   overflow-y: auto;
 }
 body.light #friends-section { background:#fff; border-color:#ccc; color:#222; }
-.friend-add { display:flex; gap:6px; margin-bottom:8px; }
+#requests-container { margin-bottom:8px; }
+.request-item { background:#333; color:#fff; padding:8px; margin-bottom:6px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; }
+body.light .request-item { background:#eee; color:#222; }
+#chats-list { list-style:none; padding:0; margin:6px 0 0 0; }
+#chats-list li { background:#222; padding:8px; margin-bottom:6px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; }
+body.light #chats-list li { background:#eee; color:#222; }
+.friend-add { display:flex; gap:6px; margin-top:8px; }
 .friend-add input { flex:1; padding:8px; border-radius:6px; border:1px solid #444; }
 
-#requests-area .req {
-  background:#333; color:#fff; padding:6px; margin-bottom:6px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;
-}
-body.light #requests-area .req { background:#eee; color:#222; }
-
-#friends-list li, #chats-list li {
-  background:#222; padding:6px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;
-}
-body.light #friends-list li, body.light #chats-list li { background:#eee; }
-
+/* request popup */
 #friend-request-popup {
   position: fixed;
   top: 20px;
@@ -114,11 +109,5 @@ body.light #friends-list li, body.light #chats-list li { background:#eee; }
 body.light #friend-request-popup .popup { background:#eee; color:#222; }
 
 /* fullscreen viewer */
-#fullscreen-viewer {
-  position: fixed;
-  top:0; left:0; right:0; bottom:0;
-  display:flex; justify-content:center; align-items:center;
-  background: rgba(0,0,0,0.9);
-  z-index: 2000;
-}
-#fullscreen-viewer img { max-width: 90%; max-height: 90%; cursor:pointer; border-radius:6px; }
+#fullscreen-viewer { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); z-index:2000; }
+#fullscreen-viewer img { max-width:90%; max-height:90%; cursor:pointer; border-radius:6px; }
