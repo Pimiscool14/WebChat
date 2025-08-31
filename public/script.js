@@ -39,6 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenViewer = document.getElementById('fullscreen-viewer');
   const fullscreenImg = document.getElementById('fullscreen-img');
 
+  // Dark/Light mode button
+  const toggleThemeBtn = document.createElement('button');
+  toggleThemeBtn.id = 'toggle-theme';
+  toggleThemeBtn.textContent = 'Toggle Dark/Light';
+  chatSection.prepend(toggleThemeBtn);
+
+  // Utilities
   function duoKey(a,b){ return [a,b].sort().join('_'); }
   function stringToColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return "#"+("000000"+Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6); }
 
@@ -64,6 +71,28 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>${embed}`;
     });
   }
+
+  // THEME FUNCTIONS
+  async function loadTheme() {
+    try {
+      const res = await fetch(`/getTheme/${username}`);
+      const data = await res.json();
+      if(data.theme==='light') document.body.classList.add('light');
+      else document.body.classList.remove('light');
+    } catch(e){ console.error(e); }
+  }
+
+  toggleThemeBtn.addEventListener('click', async ()=>{
+    const newTheme = document.body.classList.contains('light') ? 'dark' : 'light';
+    document.body.classList.toggle('light');
+    try {
+      await fetch('/setTheme', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username, theme: newTheme })
+      });
+    } catch(e){ console.error(e); }
+  });
 
   // REGISTER
   registerBtn.addEventListener('click', async () => {
@@ -93,144 +122,144 @@ document.addEventListener('DOMContentLoaded', () => {
         friendsSection.style.display = 'block';
         socket.emit('set username', username);
         loadFriends();
+        loadTheme(); // theme toepassen
       } else alert(data.error);
     } catch (err) { alert('Fout: ' + err.message); }
   });
 
-  // Message render (gebruik dezelfde logica voor hoofd- en privéchat)
+  // RENDER MESSAGE
   function renderMessage(data){
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
-    const userSpan = document.createElement('span'); userSpan.textContent = data.user; userSpan.style.color = stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
+    const userSpan = document.createElement('span');
+    userSpan.textContent = data.user;
+    userSpan.style.color = stringToColor(data.user);
+    userSpan.style.fontWeight = 'bold';
+    userSpan.style.marginRight = '6px';
+
     const msgSpan = document.createElement('span');
-    if (data.type === 'image') msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
-    else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
-    else msgSpan.innerHTML = formatMessage(data.msg);
+    if (data.type==='image') msgSpan.innerHTML=`<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
+    else if (data.type==='audio') msgSpan.innerHTML=`<audio controls src="${data.msg}"></audio>`;
+    else msgSpan.innerHTML=formatMessage(data.msg);
+
     li.appendChild(userSpan); li.appendChild(msgSpan);
 
-    // contextmenu delete (zelfde als hoofdchat)
-    li.addEventListener('contextmenu', (e) => {
+    li.addEventListener('contextmenu',(e)=>{
       e.preventDefault();
-      if (data.user === username) {
-        if (confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
+      if(data.user===username){
+        if(confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
       }
     });
 
     messagesList.appendChild(li);
-    li.scrollIntoView({ behavior:'smooth', block:'end' });
+    li.scrollIntoView({behavior:'smooth', block:'end'});
   }
 
-  // Socket events
+  // SOCKET EVENTS
   socket.off('chat history'); socket.on('chat history', (msgs) => {
-    if (currentPrivate !== null) return;
-    messagesList.innerHTML = '';
+    if(currentPrivate!==null) return;
+    messagesList.innerHTML='';
     (msgs||[]).forEach(renderMessage);
   });
 
   socket.off('chat message'); socket.on('chat message', (msg) => {
-    if (currentPrivate === null) renderMessage(msg);
+    if(currentPrivate===null) renderMessage(msg);
   });
 
   socket.off('message deleted'); socket.on('message deleted', (id) => {
     const el = document.getElementById(`msg-${id}`);
-    if (el) el.remove();
+    if(el) el.remove();
   });
 
-  // Privéchat events
-  socket.off('load private chats'); socket.on('load private chats', (threads) => {
-    window.privateThreads = threads || {};
-    if (currentPrivate) openPrivateChat(currentPrivate);
+  socket.off('load private chats'); socket.on('load private chats', (threads)=>{
+    window.privateThreads = threads||{};
+    if(currentPrivate) openPrivateChat(currentPrivate);
   });
 
-  socket.off('private message'); socket.on('private message', (msg) => {
-    const key = duoKey(msg.user, msg.privateTo || username);
-    if (!window.privateThreads[key]) window.privateThreads[key] = [];
+  socket.off('private message'); socket.on('private message', (msg)=>{
+    const key = duoKey(msg.user, msg.privateTo||username);
+    if(!window.privateThreads[key]) window.privateThreads[key]=[];
     window.privateThreads[key].push(msg);
-    if (currentPrivate && duoKey(username, currentPrivate) === key) renderExistingMessage(msg);
+    if(currentPrivate && duoKey(username,currentPrivate)===key) renderMessage(msg);
   });
 
-  socket.off('private message deleted'); 
-  socket.on('private message deleted', (id) => {
+  socket.off('private message deleted'); socket.on('private message deleted', (id)=>{
     const el = document.getElementById(`msg-${id}`);
-    if (el) el.remove();
+    if(el) el.remove();
   });
 
-  // Send message
-  chatForm.addEventListener('submit', (e) => {
+  // SEND MESSAGE
+  chatForm.addEventListener('submit',(e)=>{
     e.preventDefault();
-    if (!username) return alert('Log eerst in');
-    const txt = (messageInput.value||'').trim();
-    if (!txt) return;
-    socket.emit('chat message', { user: username, msg: txt, type:'text', privateTo: currentPrivate });
-    messageInput.value = '';
+    if(!username) return alert('Log eerst in');
+    const txt=(messageInput.value||'').trim();
+    if(!txt) return;
+    socket.emit('chat message',{ user: username, msg: txt, type:'text', privateTo: currentPrivate });
+    messageInput.value='';
   });
 
-  // Photo upload
-  photoInput.addEventListener('change', () => {
-    photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none';
-  });
-  photoSendBtn.addEventListener('click', () => {
+  // PHOTO
+  photoInput.addEventListener('change',()=>{ photoSendBtn.style.display=(photoInput.files && photoInput.files.length)?'inline-block':'none'; });
+  photoSendBtn.addEventListener('click',()=>{
     const file = photoInput.files[0];
-    if (!file) return;
+    if(!file) return;
     const reader = new FileReader();
-    reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type:'image', privateTo: currentPrivate });
+    reader.onload = () => socket.emit('chat message',{ user: username, msg: reader.result, type:'image', privateTo: currentPrivate });
     reader.readAsDataURL(file);
-    photoInput.value = '';
-    photoSendBtn.style.display = 'none';
+    photoInput.value=''; photoSendBtn.style.display='none';
   });
 
-  // Fullscreen viewer
-  document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('clickable-photo')) {
-      fullscreenImg.src = e.target.src;
-      fullscreenViewer.style.display = 'flex';
+  // FULLSCREEN
+  document.addEventListener('click',(e)=>{
+    if(e.target.classList.contains('clickable-photo')){
+      fullscreenImg.src=e.target.src;
+      fullscreenViewer.style.display='flex';
     }
   });
-  fullscreenViewer.addEventListener('click', () => {
-    fullscreenViewer.style.display = 'none';
-    fullscreenImg.src = '';
+  fullscreenViewer.addEventListener('click',()=>{
+    fullscreenViewer.style.display='none';
+    fullscreenImg.src='';
   });
 
-  // Voice recording
-  recordBtn.addEventListener('click', async () => {
-    if (!username) return alert('Log eerst in om op te nemen');
+  // AUDIO
+  recordBtn.addEventListener('click', async ()=>{
+    if(!username) return alert('Log eerst in om op te nemen');
     try {
-      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      if(!mediaRecorder || mediaRecorder.state==='inactive'){
+        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
         mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(audioChunks, { type:'audio/webm' });
+        audioChunks=[];
+        mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+        mediaRecorder.onstop=()=>{
+          const blob = new Blob(audioChunks,{type:'audio/webm'});
           const reader = new FileReader();
-          reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type:'audio', privateTo: currentPrivate });
+          reader.onload = ()=> socket.emit('chat message',{ user: username, msg: reader.result, type:'audio', privateTo: currentPrivate });
           reader.readAsDataURL(blob);
         };
         mediaRecorder.start();
-        recordBtn.textContent = 'Stop opnemen';
-      } else if (mediaRecorder.state === 'recording') {
+        recordBtn.textContent='Stop opnemen';
+      } else if(mediaRecorder.state==='recording'){
         mediaRecorder.stop();
-        recordBtn.textContent = '🎤 Opnemen';
+        recordBtn.textContent='🎤 Opnemen';
       }
-    } catch (err) { alert('Opname fout: ' + err.message); }
+    } catch(err){ alert('Opname fout: '+err.message); }
   });
 
-  // Friend requests UI
-  function addRequestElement(from) {
-    const el = document.createElement('div');
-    el.className = 'req';
-    el.innerHTML = `<span>${from}</span>`;
-    const actions = document.createElement('div'); actions.className='actions';
-    const acc = document.createElement('button'); acc.className='accept'; acc.textContent='Accepteer';
-    const rej = document.createElement('button'); rej.className='reject'; rej.textContent='Weiger';
-    acc.onclick = () => respondFriendRequest(from,true,el);
-    rej.onclick = () => respondFriendRequest(from,false,el);
+  // FRIEND REQUESTS
+  function addRequestElement(from){
+    const el=document.createElement('div'); el.className='req';
+    el.innerHTML=`<span>${from}</span>`;
+    const actions=document.createElement('div'); actions.className='actions';
+    const acc=document.createElement('button'); acc.className='accept'; acc.textContent='Accepteer';
+    const rej=document.createElement('button'); rej.className='reject'; rej.textContent='Weiger';
+    acc.onclick=()=>respondFriendRequest(from,true,el);
+    rej.onclick=()=>respondFriendRequest(from,false,el);
     actions.appendChild(acc); actions.appendChild(rej); el.appendChild(actions);
     requestsList.appendChild(el);
   }
 
-  function respondFriendRequest(from, accept, el){
-    fetch('/respondFriendRequest',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from,to:username,accept })})
+  function respondFriendRequest(from,accept,el){
+    fetch('/respondFriendRequest',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from,to:username,accept})})
       .then(r=>r.json()).then(()=>{ if(el) el.remove(); loadFriends(); }).catch(()=>{});
   }
 
@@ -257,14 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!username) return alert('Log eerst in');
     if(to===username) return alert('Je kunt jezelf geen verzoek sturen');
     fetch('/sendFriendRequest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:username,to})})
-      .then(r=>r.json()).then(d=>{alert(d.message||d.error); addFriendInput.value='';});
+      .then(r=>r.json()).then(d=>{ alert(d.message||d.error); addFriendInput.value=''; });
   });
 
-  // Private chat open / back to main
+  // PRIVATE CHAT
   function openPrivateChat(friend){
-    currentPrivate = friend;
-    messagesList.innerHTML='';
-    threadHeader.style.display='flex';
+    currentPrivate=friend; messagesList.innerHTML=''; threadHeader.style.display='flex';
     threadTitle.textContent=`Privé met ${friend}`;
     const key = duoKey(username,friend);
     const msgs = window.privateThreads[key]||[];
@@ -273,29 +300,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderExistingMessage(data){
     const li=document.createElement('li'); li.id=`msg-${data.id}`;
-    const userSpan=document.createElement('span'); userSpan.textContent=data.user; userSpan.style.color=stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
+    const userSpan=document.createElement('span'); userSpan.textContent=data.user; userSpan.style.color=stringToColor(data.user);
+    userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
     const msgSpan=document.createElement('span');
     if(data.type==='image') msgSpan.innerHTML=`<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
     else if(data.type==='audio') msgSpan.innerHTML=`<audio controls src="${data.msg}"></audio>`;
     else msgSpan.innerHTML=formatMessage(data.msg);
     li.appendChild(userSpan); li.appendChild(msgSpan);
+
+    // DELETE PRIVATE MESSAGE
     li.addEventListener('contextmenu',(e)=>{
       e.preventDefault();
-      if(data.user===username){ if(confirm('Bericht verwijderen?')) socket.emit('delete message',data.id);}
+      if(data.user===username){
+        if(confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
+      }
     });
-    messagesList.appendChild(li);
-    li.scrollIntoView({behavior:'smooth',block:'end'});
+
+    messagesList.appendChild(li); li.scrollIntoView({behavior:'smooth',block:'end'});
   }
 
   backToMainBtn.addEventListener('click',()=>{
-    currentPrivate=null;
-    threadHeader.style.display='none';
-    messagesList.innerHTML='';
+    currentPrivate=null; threadHeader.style.display='none'; messagesList.innerHTML='';
     if(username) socket.emit('set username',username);
   });
 
-  window.addEventListener('beforeunload',()=>{
-    if(mediaRecorder&&mediaRecorder.state==='recording') mediaRecorder.stop();
-  });
-
+  // Prevent leaving while recording
+  window.addEventListener('beforeunload',()=>{ if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop(); });
 });

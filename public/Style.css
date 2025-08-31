@@ -95,12 +95,10 @@ body.light #friends-section { background:#fff; border-color:#ccc; color:#222; }
 #requests-list .req .accept:hover { opacity:0.9; } 
 #requests-list .req .reject:hover { opacity:0.9; }
 
-/* friends list */
 #friends-list { list-style:none; padding:0; margin:0; }
 #friends-list li { display:flex; justify-content:space-between; align-items:center; padding:6px; background:#222; border-radius:6px; margin-bottom:6px; }
 #friends-list li button { background:#444; color:#fff; border-radius:6px; padding:6px 8px; border:none; cursor:pointer; }
 
-/* request popup (top-right) */
 #friend-request-popup {
   position: fixed;
   top: 20px;
@@ -120,7 +118,6 @@ body.light #friends-section { background:#fff; border-color:#ccc; color:#222; }
 }
 body.light #friend-request-popup .popup { background:#eee; color:#222; }
 
-/* fullscreen */
 #fullscreen-viewer {
   position: fixed;
   top:0; left:0; right:0; bottom:0;
@@ -129,3 +126,5 @@ body.light #friend-request-popup .popup { background:#eee; color:#222; }
   z-index: 2000;
 }
 #fullscreen-viewer img { max-width: 90%; max-height: 90%; cursor:pointer; border-radius:6px; }
+
+#toggle-theme { margin-bottom:8px; }
