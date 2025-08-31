@@ -23,6 +23,7 @@ function duoKey(a,b) { return [a,b].sort().join('_'); }
 
 const online = new Map();
 
+// REGISTER
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
@@ -34,6 +35,7 @@ app.post('/register', async (req, res) => {
   res.send({ message: 'Account aangemaakt!' });
 });
 
+// LOGIN
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const accounts = loadJSON(accountsFile);
@@ -44,6 +46,7 @@ app.post('/login', async (req, res) => {
   res.send({ message: 'Inloggen gelukt!' });
 });
 
+// GET FRIENDS
 app.get('/getFriends/:username', (req, res) => {
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === req.params.username);
@@ -51,6 +54,7 @@ app.get('/getFriends/:username', (req, res) => {
   res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
 });
 
+// SEND FRIEND REQUEST
 app.post('/sendFriendRequest', (req, res) => {
   const { from, to } = req.body;
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
@@ -69,6 +73,7 @@ app.post('/sendFriendRequest', (req, res) => {
   res.send({ message: 'Verzoek verstuurd!' });
 });
 
+// RESPOND FRIEND REQUEST
 app.post('/respondFriendRequest', (req, res) => {
   const { from, to, accept } = req.body;
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
@@ -94,6 +99,7 @@ app.post('/respondFriendRequest', (req, res) => {
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
+// SOCKET.IO
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
@@ -136,13 +142,33 @@ io.on('connection', (socket) => {
     }
   });
 
+  // DELETE MESSAGE (main + private)
   socket.on('delete message', (id) => {
+    // Hoofdchat
     let allMain = loadJSON(mainChatFile);
-    const msg = allMain.find(m => m.id === id);
-    if (!msg || msg.user !== socket.username) return;
-    allMain = allMain.filter(m => m.id !== id);
-    saveJSON(mainChatFile, allMain);
-    io.emit('message deleted', id);
+    const msgMain = allMain.find(m => m.id === id);
+    if (msgMain && msgMain.user === socket.username) {
+      allMain = allMain.filter(m => m.id !== id);
+      saveJSON(mainChatFile, allMain);
+      io.emit('message deleted', id);
+      return;
+    }
+
+    // Privéchat
+    const allPrivate = loadJSON(privateChatFile);
+    for (const key in allPrivate) {
+      const index = allPrivate[key].findIndex(m => m.id === id && m.user === socket.username);
+      if (index !== -1) {
+        allPrivate[key].splice(index, 1);
+        saveJSON(privateChatFile, allPrivate);
+        const [userA, userB] = key.split('_');
+        const sockA = online.get(userA);
+        const sockB = online.get(userB);
+        if (sockA) io.to(sockA).emit('private message deleted', id);
+        if (sockB) io.to(sockB).emit('private message deleted', id);
+        return;
+      }
+    }
   });
 
   socket.on('disconnect', () => {
