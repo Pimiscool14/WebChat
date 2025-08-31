@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenViewer = document.getElementById('fullscreen-viewer');
   const fullscreenImg = document.getElementById('fullscreen-img');
 
+  // Utility functies
   function duoKey(a,b){ return [a,b].sort().join('_'); }
   function stringToColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return "#"+("000000"+Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6); }
 
@@ -97,28 +98,20 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { alert('Fout: ' + err.message); }
   });
 
-  // Message render (single function)
+  // Message render
   function renderMessage(data){
     const li = document.createElement('li');
     li.id = `msg-${data.id}`;
-
-    const userSpan = document.createElement('span');
-    userSpan.textContent = data.user;
-    userSpan.style.color = stringToColor(data.user);
-    userSpan.style.fontWeight = 'bold';
-    userSpan.style.marginRight = '6px';
-
+    const userSpan = document.createElement('span'); userSpan.textContent = data.user; userSpan.style.color = stringToColor(data.user); userSpan.style.fontWeight='bold'; userSpan.style.marginRight='6px';
     const msgSpan = document.createElement('span');
     if (data.type === 'image') msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
     else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
     else msgSpan.innerHTML = formatMessage(data.msg);
+    li.appendChild(userSpan); li.appendChild(msgSpan);
 
-    li.appendChild(userSpan);
-    li.appendChild(msgSpan);
-
+    // contextmenu delete
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      // delete message for main chat or private chat
       if (data.user === username) {
         if (confirm('Bericht verwijderen?')) socket.emit('delete message', data.id);
       }
@@ -128,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     li.scrollIntoView({ behavior:'smooth', block:'end' });
   }
 
-  // Ensure events are not attached multiple times: remove before adding
+  // Socket events
   socket.off('chat history'); socket.on('chat history', (msgs) => {
     if (currentPrivate !== null) return;
     messagesList.innerHTML = '';
@@ -153,10 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const key = duoKey(msg.user, msg.privateTo || username);
     if (!window.privateThreads[key]) window.privateThreads[key] = [];
     window.privateThreads[key].push(msg);
-    if (currentPrivate && duoKey(username, currentPrivate) === key) renderMessage(msg);
+    if (currentPrivate && duoKey(username, currentPrivate) === key) renderExistingMessage(msg);
   });
 
-  // SEND message (only via submit handler)
+  // SEND message
   chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!username) return alert('Log eerst in');
@@ -166,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     messageInput.value = '';
   });
 
-  // photo upload
+  // Photo upload
   photoInput.addEventListener('change', () => {
     photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none';
   });
@@ -180,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     photoSendBtn.style.display = 'none';
   });
 
-  // fullscreen viewer
+  // Fullscreen viewer
   document.addEventListener('click', (e) => {
     if (e.target.classList.contains('clickable-photo')) {
       fullscreenImg.src = e.target.src;
@@ -192,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fullscreenImg.src = '';
   });
 
-  // voice
+  // Voice
   recordBtn.addEventListener('click', async () => {
     if (!username) return alert('Log eerst in om op te nemen');
     try {
@@ -216,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { alert('Opname fout: ' + err.message); }
   });
 
-  // FRIEND REQUEST UI (requests above chats)
+  // Friend requests UI
   function addRequestElement(from) {
     const el = document.createElement('div');
     el.className = 'req';
@@ -277,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesList.innerHTML = '';
     threadHeader.style.display = 'flex';
     threadTitle.textContent = `Privé met ${friend}`;
-    // populate thread messages
     const key = duoKey(username, friend);
     const msgs = window.privateThreads[key] || [];
     msgs.forEach(renderExistingMessage);
@@ -293,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else msgSpan.innerHTML = formatMessage(data.msg);
     li.appendChild(userSpan); li.appendChild(msgSpan);
 
-    // Nieuw: context menu delete voor privé chat
+    // contextmenu delete privé chat
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       if (data.user === username) {
