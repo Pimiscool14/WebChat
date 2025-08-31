@@ -21,8 +21,9 @@ function loadJSON(path) { return JSON.parse(fs.readFileSync(path)); }
 function saveJSON(path, data) { fs.writeFileSync(path, JSON.stringify(data, null, 2)); }
 function duoKey(a,b) { return [a,b].sort().join('_'); }
 
-const online = new Map();
+const online = new Map(); // username -> socket.id
 
+// REGISTER
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
@@ -34,6 +35,7 @@ app.post('/register', async (req, res) => {
   res.send({ message: 'Account aangemaakt!' });
 });
 
+// LOGIN
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const accounts = loadJSON(accountsFile);
@@ -44,6 +46,7 @@ app.post('/login', async (req, res) => {
   res.send({ message: 'Inloggen gelukt!' });
 });
 
+// GET FRIENDS + REQUESTS
 app.get('/getFriends/:username', (req, res) => {
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === req.params.username);
@@ -51,6 +54,7 @@ app.get('/getFriends/:username', (req, res) => {
   res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
 });
 
+// SEND FRIEND REQUEST
 app.post('/sendFriendRequest', (req, res) => {
   const { from, to } = req.body;
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
@@ -66,14 +70,16 @@ app.post('/sendFriendRequest', (req, res) => {
   receiver.friendRequests.push(from);
   saveJSON(accountsFile, accounts);
 
+  // realtime notify receiver if online
   const sock = online.get(to);
   if (sock) io.to(sock).emit('friend request', { from });
 
   res.send({ message: 'Verzoek verstuurd!' });
 });
 
+// RESPOND TO FRIEND REQUEST
 app.post('/respondFriendRequest', (req, res) => {
-  const { from, to, accept } = req.body;
+  const { from, to, accept } = req.body; // from = who sent, to = who responds
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
   const accounts = loadJSON(accountsFile);
   const sender = accounts.find(u => u.username === from);
@@ -91,14 +97,16 @@ app.post('/respondFriendRequest', (req, res) => {
 
   saveJSON(accountsFile, accounts);
 
-  const rs = online.get(to);
-  if (rs) io.to(rs).emit('friends updated');
-  const ss = online.get(from);
-  if (ss) io.to(ss).emit('friends updated');
+  // notify both parties to refresh their lists
+  const rSock = online.get(to);
+  if (rSock) io.to(rSock).emit('friends updated');
+  const sSock = online.get(from);
+  if (sSock) io.to(sSock).emit('friends updated');
 
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
+// SOCKET.IO
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
@@ -106,9 +114,11 @@ io.on('connection', (socket) => {
     socket.username = username;
     online.set(username, socket.id);
 
+    // send main chat
     const main = loadJSON(mainChatFile);
     socket.emit('chat history', main);
 
+    // send private threads for this user
     const allPrivate = loadJSON(privateChatFile);
     const userThreads = {};
     for (const k in allPrivate) {
@@ -121,6 +131,7 @@ io.on('connection', (socket) => {
     const msg = { id: Date.now(), ...data };
 
     if (data.privateTo) {
+      // validate friendship before storing/sending
       const accounts = loadJSON(accountsFile);
       const me = accounts.find(u => u.username === socket.username);
       const other = accounts.find(u => u.username === data.privateTo);
