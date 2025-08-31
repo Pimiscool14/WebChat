@@ -17,11 +17,10 @@ if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify(
 if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
 if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
-function loadJSON(path) { return JSON.parse(fs.readFileSync(path)); }
-function saveJSON(path, data) { fs.writeFileSync(path, JSON.stringify(data, null, 2)); }
-function duoKey(a,b) { return [a,b].sort().join('_'); }
+function loadJSON(p){ return JSON.parse(fs.readFileSync(p)); }
+function saveJSON(p, d){ fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+function duoKey(a,b){ return [a,b].sort().join('_'); }
 
-// online map username -> socket.id
 const online = new Map();
 
 app.post('/register', async (req, res) => {
@@ -45,7 +44,6 @@ app.post('/login', async (req, res) => {
   res.send({ message: 'Inloggen gelukt!' });
 });
 
-// friends info
 app.get('/getFriends/:username', (req, res) => {
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === req.params.username);
@@ -53,7 +51,6 @@ app.get('/getFriends/:username', (req, res) => {
   res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
 });
 
-// send friend request
 app.post('/sendFriendRequest', (req, res) => {
   const { from, to } = req.body;
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
@@ -69,16 +66,14 @@ app.post('/sendFriendRequest', (req, res) => {
   receiver.friendRequests.push(from);
   saveJSON(accountsFile, accounts);
 
-  // realtime notify receiver
-  const toSocket = online.get(to);
-  if (toSocket) io.to(toSocket).emit('friend request', { from });
+  const sock = online.get(to);
+  if (sock) io.to(sock).emit('friend request', { from });
 
   res.send({ message: 'Verzoek verstuurd!' });
 });
 
-// respond to friend request (accept/decline)
 app.post('/respondFriendRequest', (req, res) => {
-  const { from, to, accept } = req.body; // from = who sent, to = who responds
+  const { from, to, accept } = req.body;
   if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
   const accounts = loadJSON(accountsFile);
   const sender = accounts.find(u => u.username === from);
@@ -86,52 +81,45 @@ app.post('/respondFriendRequest', (req, res) => {
   if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
 
   receiver.friendRequests = (receiver.friendRequests || []).filter(x => x !== from);
-
   if (accept) {
     receiver.friends = receiver.friends || [];
     sender.friends = sender.friends || [];
     if (!receiver.friends.includes(from)) receiver.friends.push(from);
     if (!sender.friends.includes(to)) sender.friends.push(to);
   }
-
   saveJSON(accountsFile, accounts);
 
-  // notify both (if online) to reload lists
-  const rSock = online.get(to);
-  if (rSock) io.to(rSock).emit('friends updated');
-  const sSock = online.get(from);
-  if (sSock) io.to(sSock).emit('friends updated');
+  const rs = online.get(to);
+  if (rs) io.to(rs).emit('friends updated');
+  const ss = online.get(from);
+  if (ss) io.to(ss).emit('friends updated');
 
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
 // SOCKET.IO
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+io.on('connection', socket => {
+  console.log('Socket connected', socket.id);
 
-  socket.on('set username', (username) => {
+  socket.on('set username', username => {
     socket.username = username;
     online.set(username, socket.id);
 
-    // send main chat history
+    // main history
     const main = loadJSON(mainChatFile);
     socket.emit('chat history', main);
 
-    // send private threads involving this user
+    // private threads for this user
     const allPrivate = loadJSON(privateChatFile);
     const userThreads = {};
-    for (const k in allPrivate) {
-      if (k.includes(username)) userThreads[k] = allPrivate[k];
-    }
+    for (const k in allPrivate) if (k.includes(username)) userThreads[k] = allPrivate[k];
     socket.emit('load private chats', userThreads);
   });
 
-  socket.on('chat message', (data) => {
-    // data: { user, msg, type, privateTo? }
+  socket.on('chat message', data => {
     const msg = { id: Date.now(), ...data };
 
     if (data.privateTo) {
-      // check friendship
       const accounts = loadJSON(accountsFile);
       const me = accounts.find(u => u.username === socket.username);
       const other = accounts.find(u => u.username === data.privateTo);
@@ -144,12 +132,10 @@ io.on('connection', (socket) => {
       allPrivate[key].push(msg);
       saveJSON(privateChatFile, allPrivate);
 
-      // emit only to the two users
       io.to(socket.id).emit('private message', msg);
       const otherSock = online.get(data.privateTo);
       if (otherSock) io.to(otherSock).emit('private message', msg);
     } else {
-      // main chat
       const allMain = loadJSON(mainChatFile);
       allMain.push(msg);
       saveJSON(mainChatFile, allMain);
@@ -157,7 +143,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('delete message', (id) => {
+  // DELETE main chat message (unchanged)
+  socket.on('delete message', id => {
     let allMain = loadJSON(mainChatFile);
     const msg = allMain.find(m => m.id === id);
     if (!msg || msg.user !== socket.username) return;
@@ -166,9 +153,28 @@ io.on('connection', (socket) => {
     io.emit('message deleted', id);
   });
 
+  // DELETE private message (new)
+  socket.on('delete private message', ({ id, key }) => {
+    const allPrivate = loadJSON(privateChatFile);
+    if (!allPrivate[key]) return;
+    const msg = allPrivate[key].find(m => m.id === id);
+    if (!msg) return;
+    if (msg.user !== socket.username) return; // only the author can delete their private message
+
+    allPrivate[key] = allPrivate[key].filter(m => m.id !== id);
+    saveJSON(privateChatFile, allPrivate);
+
+    // emit to the two participants
+    const [a, b] = key.split('_');
+    const aSock = online.get(a);
+    const bSock = online.get(b);
+    if (aSock) io.to(aSock).emit('private message deleted', { id, key });
+    if (bSock) io.to(bSock).emit('private message deleted', { id, key });
+  });
+
   socket.on('disconnect', () => {
     if (socket.username) online.delete(socket.username);
-    console.log('Socket disconnected:', socket.id);
+    console.log('Socket disconnected', socket.id);
   });
 });
 
