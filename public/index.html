@@ -1,55 +1,56 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="utf-8">
-<title>WebChat</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="Style.css">
+  <meta charset="UTF-8">
+  <title>WebChat</title>
+  <link rel="stylesheet" href="Style.css">
 </head>
-<body>
-<h1>Welkom bij WebChat</h1>
+<body class="dark">
+  <h1>Welkom bij WebChat</h1>
 
-<form id="register-form">
-<h2>Account maken</h2>
-<input id="reg-username" type="text" placeholder="Gebruikersnaam" required>
-<input id="reg-password" type="password" placeholder="Wachtwoord" required>
-<button type="submit">Registreren</button>
-</form>
+  <!-- Login/Register -->
+  <div id="login-container">
+    <h2>Login</h2>
+    <input id="login-username" type="text" placeholder="Gebruikersnaam"><br>
+    <input id="login-password" type="password" placeholder="Wachtwoord"><br>
+    <button id="login-btn">Login</button>
+    <h2>Account maken</h2>
+    <input id="register-username" type="text" placeholder="Gebruikersnaam"><br>
+    <input id="register-password" type="password" placeholder="Wachtwoord"><br>
+    <button id="register-btn">Registreer</button>
+  </div>
 
-<form id="login-form">
-<h2>Inloggen</h2>
-<input id="log-username" type="text" placeholder="Gebruikersnaam" required>
-<input id="log-password" type="password" placeholder="Wachtwoord" required>
-<button type="submit">Inloggen</button>
-</form>
-
-<button id="mode-toggle" style="display:none;">🌙 / ☀️</button>
-
-<div id="chat-container">
-  <div id="chat-section" style="display:none;">
-    <ul id="messages"></ul>
-    <form id="chat-form" autocomplete="off">
-      <input id="message" type="text" placeholder="Typ hier je bericht..." required>
-      <button type="submit">Verstuur</button>
-    </form>
-    <div>
-      <input type="file" id="photo-input" accept="image/*">
-      <button id="photo-send-btn" style="display:none;">Versturen</button>
-      <button id="record-btn">🎤 Opnemen</button>
+  <!-- Chat na inloggen -->
+  <div id="chat-container" style="display:none;">
+    <div id="chat-section">
+      <ul id="messages"></ul>
+      <form id="chat-form" autocomplete="off">
+        <input id="message" type="text" placeholder="Typ hier je bericht..." required>
+        <button type="submit">Verstuur</button>
+      </form>
+      <div>
+        <input type="file" id="photo-input" accept="image/*">
+        <button id="photo-send-btn" style="display:none;">Versturen</button>
+        <button id="record-btn">🎤 Opnemen</button>
+      </div>
     </div>
+
+    <!-- Sidebar rechts -->
+    <aside id="friends-section" style="display:none;">
+      <h3>Vrienden</h3>
+      <ul id="friends-list"></ul>
+    </aside>
   </div>
 
-  <!-- Sidebar vrienden -->
-  <div id="friends-section">
-    <h3>Vrienden</h3>
-    <ul id="friends-list"></ul>
+  <!-- Vriendschapsverzoeken popup -->
+  <div id="friend-request-popup"></div>
+
+  <!-- Fullscreen image viewer -->
+  <div id="fullscreen-viewer" style="display:none;">
+    <img id="fullscreen-img" src="" alt="preview">
   </div>
-</div>
 
-<!-- Popup vriendschapsverzoeken -->
-<div id="friend-request-popup"></div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="script.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

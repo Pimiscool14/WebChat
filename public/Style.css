@@ -1,22 +1,35 @@
-body{font-family:Arial,sans-serif;background:#121212;color:#eee;display:flex;flex-direction:column;align-items:center;margin:0;padding:20px;}
-body.light{background:#f0f0f0;color:#222;}
-h1{margin-bottom:6px;}
-form{margin:8px 0;}
-#chat-container{display:flex;justify-content:space-between;width:100%;max-width:1200px;}
-#chat-section{width:65%;border:1px solid #333;padding:12px;background:#1e1e1e;border-radius:8px;}
-body.light #chat-section{background:#fff;border-color:#ccc;color:#222;}
-#messages{list-style:none;padding:8px;height:300px;overflow-y:auto;margin:0 0 10px 0;background:rgba(0,0,0,0.05);border-radius:6px;}
-#messages li{margin:6px 0;padding:8px;background:#2a2a2a;border-radius:6px;word-break:break-word;}
-body.light #messages li{background:#eee;color:#222;}
-input,button{padding:8px;border-radius:6px;border:none;box-sizing:border-box;} input{width:70%;}
-button{background:#6200ee;color:white;cursor:pointer;margin-left:6px;} button:hover{background:#3700b3;}
-img{max-width:300px;border-radius:8px;margin-top:6px;display:block;cursor:pointer;}
-iframe,video{margin-top:6px;border-radius:6px;}
-audio{margin-top:6px;display:block;}
-#friends-section{width:250px; border:1px solid #333; padding:12px; background:#1e1e1e; border-radius:8px; display:flex; flex-direction:column; position:fixed; right:20px; top:80px; height:70vh; overflow-y:auto;}
-body.light #friends-section{background:#fff;border-color:#ccc;color:#222;}
-#friends-section ul{list-style:none;padding:0;margin:0 0 10px 0;}
-#friends-section li{margin:4px 0;display:flex;justify-content:space-between;}
-#friend-request-popup{position:fixed;top:20px;right:20px;width:250px;z-index:1000;}
-#friend-request-popup div{background:#333;color:#fff;padding:8px;margin-bottom:6px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;}
-body.light #friend-request-popup div{background:#eee;color:#222;}
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#121212; color:white; }
+body.light{ background:#f0f0f0; color:#222; }
+h1,h2{ margin:10px; }
+
+#login-container{ margin:20px; padding:20px; border:1px solid #333; width:300px; border-radius:8px; }
+#login-container input{ width:100%; padding:8px; margin-bottom:12px; border-radius:6px; border:1px solid #444; }
+
+#chat-container{ display:flex; justify-content:space-between; width:90%; max-width:1000px; margin:20px auto; }
+#chat-section{ width:65%; border:1px solid #333; padding:12px; background:#1e1e1e; border-radius:8px; }
+body.light #chat-section{ background:#fff; border-color:#ccc; color:#222; }
+
+#messages{ list-style:none; padding:8px; height:300px; overflow-y:auto; margin:0 0 10px 0; background:rgba(0,0,0,0.05); border-radius:6px; }
+#messages li{ margin:6px 0; padding:8px; background:#2a2a2a; border-radius:6px; word-break:break-word; }
+body.light #messages li{ background:#eee; color:#222; }
+
+input,button{ padding:8px; border-radius:6px; border:none; box-sizing:border-box; }
+input{ width:70%; }
+button{ background:#6200ee; color:white; cursor:pointer; margin-left:6px; }
+button:hover{ background:#3700b3; }
+
+img{ max-width:300px; border-radius:8px; margin-top:6px; display:block; cursor:pointer; }
+iframe,video{ margin-top:6px; border-radius:6px; }
+audio{ margin-top:6px; display:block; }
+
+#friends-section{ width:30%; border:1px solid #333; padding:12px; background:#1e1e1e; border-radius:8px; }
+body.light #friends-section{ background:#fff; border-color:#ccc; color:#222; }
+#friends-section ul{ list-style:none; padding:0; margin:0; max-height:400px; overflow-y:auto; }
+#friends-section li{ margin:4px 0; display:flex; justify-content:space-between; }
+
+#friend-request-popup{ position:fixed; top:20px; right:20px; width:250px; z-index:1000; }
+#friend-request-popup div{ background:#333; color:#fff; padding:8px; margin-bottom:6px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; }
+body.light #friend-request-popup div{ background:#eee; color:#222; }
+
+#fullscreen-viewer{ position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:flex; justify-content:center; align-items:center; z-index:2000; }
+#fullscreen-viewer img{ max-width:90%; max-height:90%; cursor:pointer; }
