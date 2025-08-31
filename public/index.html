@@ -23,6 +23,12 @@
 
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
+      <!-- header met Terug-knop + titel -->
+      <div id="chat-header" class="chat-header">
+        <button id="back-to-main" style="display:none;">Terug naar algemene chat</button>
+        <span id="chat-title">Algemene chat</span>
+      </div>
+
       <ul id="messages"></ul>
 
       <form id="chat-form" autocomplete="off">
@@ -39,20 +45,23 @@
     </div>
 
     <aside id="friends-section" style="display:none;">
-      <h3>Vrienden</h3>
+      <h3>Verzoeken</h3>
+      <div id="requests-area"></div>
 
+      <h3>Vrienden</h3>
       <div class="friend-add">
         <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
         <button id="add-friend-btn">Verstuur verzoek</button>
       </div>
-
       <ul id="friends-list"></ul>
+
+      <h3>Chats</h3>
+      <ul id="chats-list"></ul>
     </aside>
   </div>
 
   <div id="friend-request-popup"></div>
 
-  <!-- fullscreen viewer -->
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
