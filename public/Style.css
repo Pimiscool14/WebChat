@@ -5,9 +5,24 @@ body {
   margin: 0;
   padding: 20px;
 }
-body.light { background:#f0f0f0; color:#222; }
+body.light { 
+  background: #f0f0f0; 
+  color: #222; 
+}
 
 h1 { margin-bottom: 12px; }
+
+#toggle-theme-btn {
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #6200ee;
+  color: #fff;
+  cursor: pointer;
+}
+#toggle-theme-btn:hover { background: #3700b3; }
+
 #login-container {
   width: 320px;
   padding: 12px;
