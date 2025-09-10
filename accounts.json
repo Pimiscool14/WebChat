@@ -1,1 +1,24 @@
-[{"username":"halloeikbeniemand","password":"$2a$10$8GS/.ZuYUSX6fBUEID15YOSXbulqTWNq4W85jjntrJxCIVGdjDbCG"}]
+[
+  {
+    "username": "Pimiscool",
+    "password": "$2a$10$w47bGJ9k6.w8VqMimXzhqOIh5qDfhM3yTGxXElLlgcX/Txk0Uxi3S",
+    "friends": [],
+    "friendRequests": [],
+    "admin": true,
+    "suspended": {
+      "status": false,
+      "until": null
+    }
+  },
+  {
+    "username": "Halloeikbeniemand",
+    "password": "$2a$10$w47bGJ9k6.w8VqMimXzhqOIh5qDfhM3yTGxXElLlgcX/Txk0Uxi3S",
+    "friends": [],
+    "friendRequests": [],
+    "admin": false,
+    "suspended": {
+      "status": false,
+      "until": null
+    }
+  }
+]
