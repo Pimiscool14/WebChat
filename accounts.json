@@ -1,7 +1,7 @@
 [
   {
     "username": "Pimiscool",
-    "password": "$2a$10$w47bGJ9k6.w8VqMimXzhqOIh5qDfhM3yTGxXElLlgcX/Txk0Uxi3S",
+    "password": "$2b$10$aVJG2Wu4toCzJ2uG5nV0veFKgGl0z5qPcNiexOm6MNxk63Fa/6etq",
     "friends": [],
     "friendRequests": [],
     "admin": true,
@@ -12,7 +12,7 @@
   },
   {
     "username": "Halloeikbeniemand",
-    "password": "$2a$10$w47bGJ9k6.w8VqMimXzhqOIh5qDfhM3yTGxXElLlgcX/Txk0Uxi3S",
+    "password": "$$2b$10$aVJG2Wu4toCzJ2uG5nV0veFKgGl0z5qPcNiexOm6MNxk63Fa/6etq",
     "friends": [],
     "friendRequests": [],
     "admin": false,

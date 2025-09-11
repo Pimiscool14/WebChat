@@ -1,13 +1,16 @@
+// public/script.js
 document.addEventListener('DOMContentLoaded', () => {
+  'use strict';
+
   const socket = io();
   let username = localStorage.getItem('username') || "";
   let mediaRecorder, audioChunks = [];
   let currentPrivate = null;
   window.privateThreads = {};
 
-  // admin setup
+  // admin setup (fallback list)
   let isAdmin = false;
-  const adminUsers = ['Halloeikbeniemand']; // voeg admin gebruikers toe
+  const adminUsers = ['Halloeikbeniemand']; // fallback / local admin list
 
   // DOM refs
   const loginContainer = document.getElementById('login-container');
@@ -43,40 +46,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const notification = document.getElementById('notification');
 
+  // admin panel elements (may be hidden by default)
+  const adminPanel = document.getElementById('admin-panel');
+  const suspendUserInput = document.getElementById('suspend-user');
+  const suspendMinutesInput = document.getElementById('suspend-minutes');
+  const suspendBtn = document.getElementById('suspend-btn');
+  const unsuspendUserInput = document.getElementById('unsuspend-user');
+  const unsuspendBtn = document.getElementById('unsuspend-btn');
+
+  // update log elements (left side dropdown)
+  const updateToggle = document.getElementById('update-log-toggle');
+  const updateContent = document.getElementById('update-log-content');
+
   // helpers
   function duoKey(a,b){ return [a,b].sort().join('_'); }
-  function stringToColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return "#"+("000000"+Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6); }
+  function stringToColor(str){
+    let h=0;
+    for (let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h);
+    return "#" + ("000000" + Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6);
+  }
   function showNotification(msg, type='info', duration=2000){
+    if(!notification) return;
     notification.textContent = msg;
     notification.style.background = type === 'error' ? '#d73a49' : '#2ea44f';
     notification.classList.add('show');
     setTimeout(()=>notification.classList.remove('show'), duration);
   }
 
+  // format message: links, embeds, media
   function formatMessage(text){
+    if(!text) return '';
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return text.replace(urlRegex,(url)=>{
       let embed="";
-      if(url.includes("youtube.com/watch?v=") || url.includes("youtu.be/")){
-        const vid = url.includes("youtube.com") ? (new URL(url).searchParams.get('v')) : url.split('/').pop();
-        if(vid) embed=`<br><iframe width="300" height="169" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`;
-      } else if(url.includes("vimeo.com/")) {
-        const vid = url.split('vimeo.com/')[1];
-        if(vid) embed=`<br><iframe src="https://player.vimeo.com/video/${vid}" width="300" height="169" frameborder="0" allowfullscreen></iframe>`;
-      } else if(url.includes('tiktok.com')){
-        embed=`<br><blockquote class="tiktok-embed" cite="${url}" style="max-width:300px;min-width:300px;"><a href="${url}">Bekijk TikTok</a></blockquote><script async src="https://www.tiktok.com/embed.js"></script>`;
-      } else if(url.match(/\.(mp4|webm|ogg)$/i)){
-        embed=`<br><video width="300" controls><source src="${url}">Je browser ondersteunt geen video</video>`;
-      } else if(url.match(/\.(mp3|wav|ogg)$/i)){
-        embed=`<br><audio controls><source src="${url}">Je browser ondersteunt geen audio</audio>`;
-      } else if(url.match(/\.(jpg|jpeg|png|gif|webp)$/i)){
-        embed=`<br><img class="clickable-photo" src="${url}" alt="afbeelding">`;
+      try {
+        if(url.includes("youtube.com/watch?v=") || url.includes("youtu.be/")){
+          const vid = url.includes("youtube.com") ? (new URL(url).searchParams.get('v')) : url.split('/').pop();
+          if(vid) embed=`<br><iframe width="300" height="169" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`;
+        } else if(url.includes("vimeo.com/")) {
+          const vid = url.split('vimeo.com/')[1];
+          if(vid) embed=`<br><iframe src="https://player.vimeo.com/video/${vid}" width="300" height="169" frameborder="0" allowfullscreen></iframe>`;
+        } else if(url.includes('tiktok.com')){
+          embed=`<br><blockquote class="tiktok-embed" cite="${url}" style="max-width:300px;min-width:300px;"><a href="${url}">Bekijk TikTok</a></blockquote><script async src="https://www.tiktok.com/embed.js"></script>`;
+        } else if(url.match(/\.(mp4|webm|ogg)$/i)){
+          embed=`<br><video width="300" controls><source src="${url}">Je browser ondersteunt geen video</video>`;
+        } else if(url.match(/\.(mp3|wav|ogg)$/i)){
+          embed=`<br><audio controls><source src="${url}">Je browser ondersteunt geen audio</audio>`;
+        } else if(url.match(/\.(jpg|jpeg|png|gif|webp)$/i)){
+          embed=`<br><img class="clickable-photo" src="${url}" alt="afbeelding">`;
+        }
+      } catch(e){
+        // ignore URL parsing errors
       }
       return `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>${embed}`;
     });
   }
 
-  // ------------------ Message render ------------------
+  // render single message
   function renderMessage(data){
     if(!data || !data.id) return;
     if(document.getElementById(`msg-${data.id}`)) return;
@@ -98,9 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
     li.appendChild(userSpan);
     li.appendChild(msgSpan);
 
+    // context menu: delete (own messages or admin)
     li.addEventListener('contextmenu', (e)=> {
       e.preventDefault();
-      // admins kunnen alle berichten verwijderen
       if (data.user !== username && !isAdmin) return;
       if (!confirm('Bericht verwijderen?')) return;
       if (data.privateTo) socket.emit('delete private message', { id: data.id, to: data.privateTo });
@@ -111,20 +137,22 @@ document.addEventListener('DOMContentLoaded', () => {
     li.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
-  // ------------------ Auth ------------------
+  // ------------------ Auth / auto-login ------------------
   async function tryAutoLogin() {
     if (!username) return;
-    if(adminUsers.includes(username)) isAdmin = true;
+    // we can't verify admin status without login endpoint, so use fallback list
+    if (adminUsers.includes(username)) isAdmin = true;
+    if (isAdmin && adminPanel) adminPanel.style.display = 'block';
     loginContainer.style.display = 'none';
     logoutBtn.style.display = 'block';
     chatContainer.style.display = 'flex';
-    friendsSection.style.display = 'block';
+    if(friendsSection) friendsSection.style.display = 'block';
     socket.emit('set username', username);
     showNotification(`Welkom terug, ${username}`);
     loadFriends();
   }
 
-  registerBtn.addEventListener('click', async () => {
+  registerBtn && registerBtn.addEventListener('click', async () => {
     const user = (registerUsername.value||'').trim();
     const pass = (registerPassword.value||'').trim();
     if (!user || !pass) return showNotification('Vul gebruikersnaam en wachtwoord in', 'error');
@@ -136,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { showNotification('Fout: ' + err.message, 'error'); }
   });
 
-  loginBtn.addEventListener('click', async () => {
+  loginBtn && loginBtn.addEventListener('click', async () => {
     const user = (loginUsername.value||'').trim();
     const pass = (loginPassword.value||'').trim();
     if (!user || !pass) return showNotification('Vul gebruikersnaam en wachtwoord in', 'error');
@@ -145,35 +173,39 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.message) {
         username = user;
-        if(adminUsers.includes(username)) isAdmin = true;
+        // server may return admin flag
+        if (data.admin) isAdmin = true;
+        if (adminUsers.includes(username)) isAdmin = true; // fallback
         localStorage.setItem('username', username);
         loginContainer.style.display = 'none';
         logoutBtn.style.display = 'block';
         chatContainer.style.display = 'flex';
-        friendsSection.style.display = 'block';
+        if(friendsSection) friendsSection.style.display = 'block';
         socket.emit('set username', username);
         showNotification('Inloggen gelukt');
         loadFriends();
+        if (isAdmin && adminPanel) adminPanel.style.display = 'block';
       } else {
         showNotification(data.error || 'Login mislukt', 'error');
       }
     } catch (err) { showNotification('Fout: ' + err.message, 'error'); }
   });
 
-  logoutBtn.addEventListener('click', () => {
+  logoutBtn && logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('username');
     username = '';
     isAdmin = false;
     loginContainer.style.display = 'block';
     logoutBtn.style.display = 'none';
     chatContainer.style.display = 'none';
-    friendsSection.style.display = 'none';
+    if(friendsSection) friendsSection.style.display = 'none';
     messagesList.innerHTML = '';
     currentPrivate = null;
+    if (adminPanel) adminPanel.style.display = 'none';
     showNotification('Uitgelogd');
   });
 
-  if(username) tryAutoLogin();
+  if (username) tryAutoLogin();
 
   // ------------------ Socket listeners ------------------
   socket.off('chat history'); socket.on('chat history', (msgs) => {
@@ -219,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.off('friends updated'); socket.on('friends updated', loadFriends);
 
   // ------------------ Send message ------------------
-  chatForm.addEventListener('submit', (e) => {
+  chatForm && chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const txt = (messageInput.value||'').trim();
     if(!txt) return;
@@ -229,8 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // photo
-  photoInput.addEventListener('change', () => { photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; });
-  photoSendBtn.addEventListener('click', () => {
+  photoInput && photoInput.addEventListener('change', () => {
+    photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none';
+  });
+  photoSendBtn && photoSendBtn.addEventListener('click', () => {
     const file = photoInput.files[0];
     if(!file) return;
     const reader = new FileReader();
@@ -239,16 +273,17 @@ document.addEventListener('DOMContentLoaded', () => {
     photoInput.value=''; photoSendBtn.style.display='none';
   });
 
+  // fullscreen image viewer
   document.addEventListener('click', (e)=> {
     if(e.target.classList.contains('clickable-photo')){
       fullscreenImg.src=e.target.src;
       fullscreenViewer.style.display='flex';
     }
   });
-  fullscreenViewer.addEventListener('click', ()=> { fullscreenViewer.style.display='none'; fullscreenImg.src=''; });
+  fullscreenViewer && fullscreenViewer.addEventListener('click', ()=> { fullscreenViewer.style.display='none'; fullscreenImg.src=''; });
 
   // audio recorder
-  recordBtn.addEventListener('click', async () => {
+  recordBtn && recordBtn.addEventListener('click', async () => {
     if(!username) return showNotification('Log eerst in om op te nemen', 'error');
     try{
       if(!mediaRecorder || mediaRecorder.state==='inactive'){
@@ -307,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(()=>{});
   }
 
-  addFriendBtn.addEventListener('click', ()=>{
+  addFriendBtn && addFriendBtn.addEventListener('click', ()=>{
     const to=(addFriendInput.value||'').trim();
     if(!to) return showNotification('Vul gebruikersnaam in','error');
     if(!username) return showNotification('Log eerst in','error');
@@ -327,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     msgs.forEach(renderMessage);
   }
 
-  backToMainBtn.addEventListener('click', ()=>{
+  backToMainBtn && backToMainBtn.addEventListener('click', ()=>{
     currentPrivate=null;
     threadHeader.style.display='none';
     messagesList.innerHTML='';
@@ -338,16 +373,87 @@ document.addEventListener('DOMContentLoaded', () => {
     if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop();
   });
 
-fetch('/updates.json')
-  .then(res => res.json())
-  .then(updates => {
-    const log = document.getElementById('update-log');
-    const ul = document.createElement('ul');
-    updates.forEach(u => {
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${u.date}:</strong> ${u.text}`;
-      ul.appendChild(li);
+  // ------------------ Admin actions ------------------
+  if (suspendBtn) {
+    suspendBtn.addEventListener('click', async () => {
+      const target = (suspendUserInput.value || '').trim();
+      const minutes = Number(suspendMinutesInput.value || 0);
+      if (!target) return showNotification('Vul een gebruikersnaam in om te schorsen', 'error');
+      if (!username) return showNotification('Log eerst in als admin', 'error');
+      if (!isAdmin) return showNotification('Je hebt geen admin-rechten', 'error');
+
+      const durationMs = minutes > 0 ? minutes * 60 * 1000 : null; // null = permanent (per server logic)
+      try {
+        const res = await fetch('/admin/suspend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminUser: username, targetUser: target, durationMs })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showNotification(data.message || `${target} geschorst`);
+          suspendUserInput.value = ''; suspendMinutesInput.value = '';
+        } else {
+          showNotification(data.error || 'Kon gebruiker niet schorsen', 'error');
+        }
+      } catch (e) {
+        showNotification('Fout bij schorsen: ' + e.message, 'error');
+      }
     });
-    log.appendChild(ul);
-  });
+  }
+
+  if (unsuspendBtn) {
+    unsuspendBtn.addEventListener('click', async () => {
+      const target = (unsuspendUserInput.value || '').trim();
+      if (!target) return showNotification('Vul gebruikersnaam in om vrij te geven', 'error');
+      if (!username) return showNotification('Log eerst in als admin', 'error');
+      if (!isAdmin) return showNotification('Je hebt geen admin-rechten', 'error');
+      try {
+        const res = await fetch('/admin/unsuspend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminUser: username, targetUser: target })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showNotification(data.message || `${target} vrijgegeven`);
+          unsuspendUserInput.value = '';
+        } else {
+          showNotification(data.error || 'Kon gebruiker niet vrijgeven', 'error');
+        }
+      } catch (e) {
+        showNotification('Fout: ' + e.message, 'error');
+      }
+    });
+  }
+
+  // ------------------ Update log toggle + load updates.json ------------------
+  if (updateToggle && updateContent) {
+    updateToggle.addEventListener('click', () => {
+      updateContent.style.display = updateContent.style.display === 'block' ? 'none' : 'block';
+    });
+
+    fetch('/updates.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Geen updates gevonden');
+        return res.json();
+      })
+      .then(updates => {
+        updateContent.innerHTML = ''; // clear existing
+        const ul = document.createElement('ul');
+        (updates || []).forEach(u => {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${u.date || ''}:</strong> ${u.text || ''}`;
+          ul.appendChild(li);
+        });
+        updateContent.appendChild(ul);
+      })
+      .catch(()=> {
+        // fallback default content if file ontbreekt
+        if (updateContent) {
+          updateContent.innerHTML = '<ul><li>Geen updates beschikbaar</li></ul>';
+        }
+      });
+  }
+
 });

@@ -1,24 +1,35 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>WebChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="Style.css">
 </head>
 <body>
-  <h1>Welkom bij WebChat</h1>
-  <button id="logout-btn">Uitloggen</button>
-<div id="update-log">
-  <h2>Update Log</h2>
-  <ul>
-    <li><strong>2025-09-10:</strong> Bannen en Admin toegevoegd.</li>
-    <li><strong>2025-09-09:</strong> Admin kan alle berichten verwijderen.</li>
-    <li><strong>2025-09-08:</strong> Games staat in werking.</li>
-  </ul>
-</div>
+  <!-- Update log dropdown links -->
+  <div id="update-log-container">
+    <button id="update-log-toggle">📜 Updates</button>
+    <div id="update-log-content">
+      <ul>
+        <li>Admin toegevoegd</li>
+        <li>Bannen en berichten verwijderen kunnen admins</li>
+        <li>Games en rekenspelletje komen eraan!</li>
+      </ul>
+    </div>
+  </div>
 
+  <!-- Admin panel -->
+  <div id="admin-panel" style="display:none;">
+    <h2>🔧 Admin panel</h2>
+    <input id="suspend-user" type="text" placeholder="Gebruikersnaam schorsen">
+    <input id="suspend-minutes" type="number" placeholder="Minuten (0 = permanent)">
+    <button id="suspend-btn">Schors</button>
+    <input id="unsuspend-user" type="text" placeholder="Gebruiker vrijgeven">
+    <button id="unsuspend-btn">Vrijgeven</button>
+  </div>
 
+  <!-- Login -->
   <div id="login-container">
     <h2>Login</h2>
     <input id="login-username" type="text" placeholder="Gebruikersnaam">
@@ -31,6 +42,8 @@
     <button id="register-btn">Registreer</button>
   </div>
 
+  <!-- Chat container -->
+  <button id="logout-btn">Uitloggen</button>
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
       <div id="thread-header" style="display:none;">
@@ -71,23 +84,14 @@
     </aside>
   </div>
 
-  <!-- admin panel -->
-  <div id="admin-panel" style="display:none;">
-    <h2>🔧 Admin panel</h2>
-    <input id="suspend-user" type="text" placeholder="Gebruikersnaam schorsen">
-    <input id="suspend-minutes" type="number" placeholder="Minuten (0 = permanent)">
-    <button id="suspend-btn">Schors</button>
-    <input id="unsuspend-user" type="text" placeholder="Gebruiker vrijgeven">
-    <button id="unsuspend-btn">Vrijgeven</button>
-  </div>
-
-  <div id="friend-request-popup"></div>
-
+  <!-- fullscreen viewer -->
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
 
+  <!-- notifications -->
   <div id="notification"></div>
+  <div id="friend-request-popup"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
