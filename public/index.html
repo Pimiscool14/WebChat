@@ -7,26 +7,18 @@
   <link rel="stylesheet" href="Style.css">
 </head>
 <body>
-  <!-- Update log dropdown links -->
-  <div id="update-log-container">
-    <button id="update-log-toggle">📜 Updates</button>
-    <div id="update-log-content">
-      <ul>
-        <li>Admin toegevoegd</li>
-        <li>Bannen en berichten verwijderen kunnen admins</li>
-        <li>Games en rekenspelletje komen eraan!</li>
-      </ul>
-    </div>
+  <!-- Header -->
+  <div class="header">
+    <h1>Welkom bij WebChat</h1>
+    <button id="logout-btn">Uitloggen</button>
   </div>
 
-  <!-- Admin panel -->
-  <div id="admin-panel" style="display:none;">
-    <h2>🔧 Admin panel</h2>
-    <input id="suspend-user" type="text" placeholder="Gebruikersnaam schorsen">
-    <input id="suspend-minutes" type="number" placeholder="Minuten (0 = permanent)">
-    <button id="suspend-btn">Schors</button>
-    <input id="unsuspend-user" type="text" placeholder="Gebruiker vrijgeven">
-    <button id="unsuspend-btn">Vrijgeven</button>
+  <!-- Update log -->
+  <div id="update-log-container" class="update-log">
+    <button id="update-log-toggle">📜 Updates</button>
+    <div id="update-log-content">
+      <ul id="update-log"></ul>
+    </div>
   </div>
 
   <!-- Login -->
@@ -42,8 +34,7 @@
     <button id="register-btn">Registreer</button>
   </div>
 
-  <!-- Chat container -->
-  <button id="logout-btn">Uitloggen</button>
+  <!-- Chat -->
   <div id="chat-container" style="display:none;">
     <div id="chat-section">
       <div id="thread-header" style="display:none;">
@@ -70,28 +61,44 @@
       </div>
     </div>
 
-    <aside id="friends-section" style="display:none;">
-      <h3>Verzoeken</h3>
-      <div id="requests-list"></div>
+    <!-- Sidebar: Friends + Admin -->
+    <aside id="sidebar">
+      <div id="friends-section">
+        <h3>Verzoeken</h3>
+        <div id="requests-list"></div>
 
-      <h3>Chats</h3>
-      <div class="friend-add">
-        <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
-        <button id="add-friend-btn">Verstuur verzoek</button>
+        <h3>Chats</h3>
+        <div class="friend-add">
+          <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
+          <button id="add-friend-btn">Verstuur verzoek</button>
+        </div>
+        <ul id="friends-list"></ul>
       </div>
 
-      <ul id="friends-list"></ul>
+      <!-- Admin panel dropdown -->
+      <div id="admin-panel-container">
+        <button id="admin-toggle">🔧 Admin panel ▼</button>
+        <div id="admin-panel" style="display:none;">
+          <input id="suspend-user" type="text" placeholder="Gebruikersnaam schorsen">
+          <input id="suspend-time" type="text" placeholder="Tijd (10m/1u/2d, 0 = permanent)">
+          <button id="suspend-btn">Schors</button>
+          <input id="unsuspend-user" type="text" placeholder="Gebruiker vrijgeven">
+          <button id="unsuspend-btn">Vrijgeven</button>
+        </div>
+      </div>
+
+      <!-- Games knop -->
+      <div id="games-container">
+        <button id="games-btn">🎮 Games</button>
+      </div>
     </aside>
   </div>
 
-  <!-- fullscreen viewer -->
+  <div id="friend-request-popup"></div>
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
-
-  <!-- notifications -->
   <div id="notification"></div>
-  <div id="friend-request-popup"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
