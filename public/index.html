@@ -50,10 +50,10 @@
       </form>
 
       <div class="extra-tools">
-        <div class="photo-row">
-          <label for="photo-input">📷 Foto:</label>
-          <input type="file" id="photo-input" accept="image/*">
-          <button id="photo-send-btn" style="display:none;">Versturen</button>
+        <div class="file-row">
+          <label for="file-input">📁 Bestand uploader:</label>
+          <input type="file" id="file-input">
+          <button id="file-send-btn" style="display:none;">Versturen</button>
         </div>
         <div class="record-row">
           <button id="record-btn">🎤 Opnemen</button>
@@ -79,11 +79,13 @@
       <div id="admin-panel-container">
         <button id="admin-toggle">🔧 Admin panel ▼</button>
         <div id="admin-panel" style="display:none;">
-          <input id="suspend-user" type="text" placeholder="Gebruikersnaam schorsen">
-          <input id="suspend-time" type="text" placeholder="Tijd (10m/1u/2d, 0 = permanent)">
-          <button id="suspend-btn">Schors</button>
-          <input id="unsuspend-user" type="text" placeholder="Gebruiker vrijgeven">
-          <button id="unsuspend-btn">Vrijgeven</button>
+          <input id="admin-suspend-username" type="text" placeholder="Gebruikersnaam">
+          <input id="admin-suspend-days" type="number" placeholder="Dagen">
+          <input id="admin-suspend-hours" type="number" placeholder="Uren">
+          <input id="admin-suspend-minutes" type="number" placeholder="Minuten">
+          <button id="admin-suspend-btn">Schorsen</button>
+          <input id="admin-unsuspend-username" type="text" placeholder="Gebruikersnaam vrijgeven">
+          <button id="admin-unsuspend-btn">Vrijgeven</button>
         </div>
       </div>
 

@@ -68,7 +68,7 @@ button:hover { background:#3700b3; }
   flex-direction:column;
   gap:8px;
 }
-.photo-row, .record-row {
+.file-row, .record-row {
   display:flex;
   gap:8px;
   align-items:center;
@@ -100,6 +100,9 @@ audio, video, iframe { margin-top:6px; border-radius:6px; display:block; }
   margin-bottom:6px;
 }
 
+#requests-list .accept { background: #2ea44f; color: #fff; margin-right: 6px; }
+#requests-list .reject { background: #d73a49; color: #fff; }
+
 #admin-panel-container { margin-top:12px; }
 #admin-panel {
   border:1px solid #333;
@@ -113,9 +116,6 @@ audio, video, iframe { margin-top:6px; border-radius:6px; display:block; }
 }
 #admin-panel input, #admin-panel button { width:100%; }
 
-#games-container {
-  margin-top:12px;
-}
 #games-btn {
   width:100%;
   background:#4caf50;
