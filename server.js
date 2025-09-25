@@ -1,140 +1,156 @@
 // server.js
-const express = require('express');
+const express = require("express");
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
+const bcrypt = require("bcryptjs");
+const fs = require("fs");
+const path = require("path");
 
-app.use(express.static('public'));
-app.use(express.json({ limit: '20mb' }));
+app.use(express.static("public"));
+app.use(express.json({ limit: "50mb" })); // grote uploads
 
-// JSON-bestanden
-const accountsFile = path.join(__dirname, 'accounts.json');
-const mainChatFile = path.join(__dirname, 'mainChat.json');
-const privateChatFile = path.join(__dirname, 'privateChat.json');
+const accountsFile = path.join(__dirname, "accounts.json");
+const mainChatFile = path.join(__dirname, "mainChat.json");
+const privateChatFile = path.join(__dirname, "privateChat.json");
 
-// Bestanden aanmaken indien nodig
+// Zorg dat bestanden bestaan
 if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
 if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
 if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
-function loadJSON(file) { return JSON.parse(fs.readFileSync(file)); }
-function saveJSON(file, data) { fs.writeFileSync(file, JSON.stringify(data, null, 2)); }
-function duoKey(a, b) { return [a, b].sort().join('_'); }
+function loadJSON(p) {
+  return JSON.parse(fs.readFileSync(p));
+}
+function saveJSON(p, d) {
+  fs.writeFileSync(p, JSON.stringify(d, null, 2));
+}
+function duoKey(a, b) {
+  return [a, b].sort().join("_");
+}
 
 const online = new Map(); // username -> socket.id
 
-// ------------------- Accounts -------------------
-app.post('/register', async (req, res) => {
+// =================== ACCOUNTS =====================
+app.post("/register", async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+  if (!username || !password) return res.status(400).send({ error: "Vul alles in" });
 
   const accounts = loadJSON(accountsFile);
-  if (accounts.find(a => a.username === username)) return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
+  if (accounts.find((a) => a.username === username))
+    return res.status(400).send({ error: "Gebruikersnaam bestaat al" });
 
-  const hash = await bcrypt.hash(password, 10);
-  accounts.push({ username, password: hash, friends: [], friendRequests: [], admin: false, suspended: { status: false, until: null } });
+  const hashed = await bcrypt.hash(password, 10);
+  accounts.push({
+    username,
+    password: hashed,
+    friends: [],
+    friendRequests: [],
+    admin: false,
+    suspended: { status: false, until: null },
+  });
   saveJSON(accountsFile, accounts);
-  res.send({ message: 'Account aangemaakt!' });
+  res.send({ message: "Account aangemaakt!" });
 });
 
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
-
   const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === username);
-  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const user = accounts.find((u) => u.username === username);
+  if (!user) return res.status(400).send({ error: "Gebruiker niet gevonden" });
 
   const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
+  if (!ok) return res.status(400).send({ error: "Fout wachtwoord" });
 
-  // Controleer schorsing
   const now = Date.now();
-  if (user.suspended.status && (!user.suspended.until || user.suspended.until > now)) return res.status(403).send({ error: 'Account is geschorst' });
-  if (user.suspended.status && user.suspended.until <= now) { user.suspended = { status: false, until: null }; saveJSON(accountsFile, accounts); }
+  if (user.suspended?.status) {
+    if (!user.suspended.until || user.suspended.until > now) {
+      return res.status(403).send({ error: "Account is geschorst" });
+    } else {
+      user.suspended = { status: false, until: null };
+      saveJSON(accountsFile, accounts);
+    }
+  }
 
-  res.send({ message: 'Inloggen gelukt!', admin: user.admin });
+  res.send({ message: "Inloggen gelukt!", admin: user.admin });
 });
 
-// Admin helper
+// =================== ADMIN FUNCTIES =====================
 function isAdmin(username) {
   const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === username);
+  const user = accounts.find((u) => u.username === username);
   return user && user.admin;
 }
 
-// ------------------- Admin -------------------
-app.post('/admin/suspend', (req, res) => {
+app.post("/admin/suspend", (req, res) => {
   const { adminUser, targetUser, durationMs } = req.body || {};
-  if (!isAdmin(adminUser)) return res.status(403).send({ error: 'Alleen admins kunnen schorsen' });
+  if (!isAdmin(adminUser)) return res.status(403).send({ error: "Geen rechten" });
 
   const accounts = loadJSON(accountsFile);
-  const target = accounts.find(u => u.username === targetUser);
-  if (!target) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const target = accounts.find((u) => u.username === targetUser);
+  if (!target) return res.status(400).send({ error: "Niet gevonden" });
 
-  target.suspended = { status: true, until: durationMs ? Date.now() + durationMs : null };
+  target.suspended = {
+    status: true,
+    until: durationMs ? Date.now() + durationMs : null,
+  };
   saveJSON(accountsFile, accounts);
+
+  const sock = online.get(targetUser);
+  if (sock) io.to(sock).emit("suspended");
+
   res.send({ message: `${targetUser} is geschorst` });
 });
 
-app.post('/admin/unsuspend', (req, res) => {
+app.post("/admin/unsuspend", (req, res) => {
   const { adminUser, targetUser } = req.body || {};
-  if (!isAdmin(adminUser)) return res.status(403).send({ error: 'Alleen admins kunnen dit' });
+  if (!isAdmin(adminUser)) return res.status(403).send({ error: "Geen rechten" });
 
   const accounts = loadJSON(accountsFile);
-  const target = accounts.find(u => u.username === targetUser);
-  if (!target) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const target = accounts.find((u) => u.username === targetUser);
+  if (!target) return res.status(400).send({ error: "Niet gevonden" });
 
   target.suspended = { status: false, until: null };
   saveJSON(accountsFile, accounts);
   res.send({ message: `${targetUser} is weer actief` });
 });
 
-// ------------------- Vriendensysteem -------------------
-app.get('/getFriends/:username', (req, res) => {
+// =================== VRIENDEN =====================
+app.get("/getFriends/:username", (req, res) => {
   const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === req.params.username);
-  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const user = accounts.find((u) => u.username === req.params.username);
+  if (!user) return res.status(400).send({ error: "Niet gevonden" });
   res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
 });
 
-app.post('/sendFriendRequest', (req, res) => {
+app.post("/sendFriendRequest", (req, res) => {
   const { from, to } = req.body || {};
-  if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
-
   const accounts = loadJSON(accountsFile);
-  const sender = accounts.find(u => u.username === from);
-  const receiver = accounts.find(u => u.username === to);
-  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-  if (from === to) return res.status(400).send({ error: 'Je kunt jezelf geen verzoek sturen' });
-  if ((receiver.friends || []).includes(from)) return res.status(400).send({ error: 'Jullie zijn al vrienden' });
+  const sender = accounts.find((u) => u.username === from);
+  const receiver = accounts.find((u) => u.username === to);
+  if (!sender || !receiver) return res.status(400).send({ error: "Niet gevonden" });
+  if (from === to) return res.status(400).send({ error: "Je kan jezelf geen verzoek sturen" });
 
   receiver.friendRequests = receiver.friendRequests || [];
-  if (receiver.friendRequests.includes(from)) return res.status(400).send({ error: 'Verzoek al verstuurd' });
-
-  receiver.friendRequests.push(from);
+  if (!receiver.friendRequests.includes(from)) {
+    receiver.friendRequests.push(from);
+  }
   saveJSON(accountsFile, accounts);
 
   const recvSock = online.get(to);
-  if (recvSock) io.to(recvSock).emit('friend request', { from });
+  if (recvSock) io.to(recvSock).emit("friend request", { from });
 
-  io.to(online.get(from))?.emit('friends updated');
-  res.send({ message: 'Verzoek verstuurd!' });
+  res.send({ message: "Verzoek gestuurd!" });
 });
 
-app.post('/respondFriendRequest', (req, res) => {
+app.post("/respondFriendRequest", (req, res) => {
   const { from, to, accept } = req.body || {};
-  if (!from || !to || typeof accept === 'undefined') return res.status(400).send({ error: 'Onvolledige data' });
-
   const accounts = loadJSON(accountsFile);
-  const sender = accounts.find(u => u.username === from);
-  const receiver = accounts.find(u => u.username === to);
-  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const sender = accounts.find((u) => u.username === from);
+  const receiver = accounts.find((u) => u.username === to);
+  if (!sender || !receiver) return res.status(400).send({ error: "Niet gevonden" });
 
-  receiver.friendRequests = (receiver.friendRequests || []).filter(x => x !== from);
+  receiver.friendRequests = (receiver.friendRequests || []).filter((x) => x !== from);
   if (accept) {
     receiver.friends = receiver.friends || [];
     sender.friends = sender.friends || [];
@@ -148,83 +164,53 @@ app.post('/respondFriendRequest', (req, res) => {
   }
   saveJSON(accountsFile, accounts);
 
-  io.to(online.get(to))?.emit('friends updated');
-  io.to(online.get(from))?.emit('friends updated');
-
-  res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
+  res.send({ message: accept ? "Geaccepteerd" : "Geweigerd" });
 });
 
-// ------------------- Socket.IO -------------------
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+// =================== SOCKET.IO =====================
+io.on("connection", (socket) => {
+  console.log("Connect:", socket.id);
 
-  socket.on('set username', (uname) => {
+  socket.on("set username", (uname) => {
     if (!uname) return;
     socket.username = uname;
     online.set(uname, socket.id);
 
-    // Hoofdchat geschiedenis
-    socket.emit('chat history', loadJSON(mainChatFile));
+    const main = loadJSON(mainChatFile);
+    socket.emit("chat history", main);
 
-    // Privé chats
     const allPrivate = loadJSON(privateChatFile);
     const userThreads = {};
-    for (const k in allPrivate) if (k.includes(uname)) userThreads[k] = allPrivate[k];
-    socket.emit('load private chats', userThreads);
-
-    socket.emit('friends updated');
+    for (const k in allPrivate) {
+      if (k.includes(uname)) userThreads[k] = allPrivate[k];
+    }
+    socket.emit("load private chats", userThreads);
   });
 
-  socket.on('chat message', (data) => {
+  socket.on("chat message", (data) => {
     const msg = { id: Date.now(), ...data };
 
     if (data.privateTo) {
-      const accounts = loadJSON(accountsFile);
-      const me = accounts.find(u => u.username === socket.username);
-      const other = accounts.find(u => u.username === data.privateTo);
-      if (!me || !other) return;
-      if (!((me.friends || []).includes(other.username) && (other.friends || []).includes(me.username))) return;
-
       const key = duoKey(socket.username, data.privateTo);
       const allPrivate = loadJSON(privateChatFile);
       if (!allPrivate[key]) allPrivate[key] = [];
       allPrivate[key].push(msg);
       saveJSON(privateChatFile, allPrivate);
 
-      io.to(socket.id).emit('private message', msg);
-      io.to(online.get(data.privateTo))?.emit('private message', msg);
+      io.to(socket.id).emit("private message", msg);
+      const otherSock = online.get(data.privateTo);
+      if (otherSock) io.to(otherSock).emit("private message", msg);
     } else {
       const allMain = loadJSON(mainChatFile);
       allMain.push(msg);
       saveJSON(mainChatFile, allMain);
-      io.emit('chat message', msg);
+      io.emit("chat message", msg);
     }
   });
 
-  socket.on('delete message', (id) => {
-    let allMain = loadJSON(mainChatFile);
-    const msg = allMain.find(m => m.id === id);
-    if (!msg || msg.user !== socket.username) return;
-    allMain = allMain.filter(m => m.id !== id);
-    saveJSON(mainChatFile, allMain);
-    io.emit('message deleted', id);
+  socket.on("disconnect", () => {
+    if (socket.username) online.delete(socket.username);
   });
-
-  socket.on('delete private message', ({ id, to }) => {
-    if (!to) return;
-    const key = duoKey(socket.username, to);
-    const allPrivate = loadJSON(privateChatFile);
-    if (!allPrivate[key]) return;
-    const msg = allPrivate[key].find(m => m.id === id);
-    if (!msg || msg.user !== socket.username) return;
-    allPrivate[key] = allPrivate[key].filter(m => m.id !== id);
-    saveJSON(privateChatFile, allPrivate);
-
-    io.to(socket.id).emit('private message deleted', { id, to });
-    io.to(online.get(to))?.emit('private message deleted', { id, to });
-  });
-
-  socket.on('disconnect', () => { if (socket.username) online.delete(socket.username); console.log('Socket disconnected:', socket.id); });
 });
 
 const PORT = process.env.PORT || 3000;
