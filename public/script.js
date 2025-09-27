@@ -1,299 +1,238 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const socket = io();
-  let username = localStorage.getItem('username') || "";
-  let mediaRecorder, audioChunks = [];
-  let currentPrivate = null;
-  window.privateThreads = {};
+// ===== Socket.io connect =====
+const socket = io();
+let currentUser = null;
+let currentChat = "general"; // standaard algemene chat
+let localStream;
+let peerConnection;
 
-  let isAdmin = false;
-  const adminUsers = ['Halloeikbeniemand'];
+// ===== LOGIN / REGISTER =====
+const loginBtn = document.getElementById("login-btn");
+const registerBtn = document.getElementById("register-btn");
 
-  // DOM refs
-  const loginContainer = document.getElementById('login-container');
-  const loginBtn = document.getElementById('login-btn');
-  const registerBtn = document.getElementById('register-btn');
-  const loginUsername = document.getElementById('login-username');
-  const loginPassword = document.getElementById('login-password');
-  const registerUsername = document.getElementById('register-username');
-  const registerPassword = document.getElementById('register-password');
-  const logoutBtn = document.getElementById('logout-btn');
+loginBtn?.addEventListener("click", () => {
+const user = document.getElementById("login-username").value;
+const pass = document.getElementById("login-password").value;
+socket.emit("login", { username: user, password: pass });
+});
 
-  const chatContainer = document.getElementById('chat-container');
-  const chatSection = document.getElementById('chat-section');
-  const threadHeader = document.getElementById('thread-header');
-  const backToMainBtn = document.getElementById('back-to-main');
-  const threadTitle = document.getElementById('thread-title');
-  const chatForm = document.getElementById('chat-form');
-  const messageInput = document.getElementById('message');
-  const messagesList = document.getElementById('messages');
+registerBtn?.addEventListener("click", () => {
+const user = document.getElementById("register-username").value;
+const pass = document.getElementById("register-password").value;
+socket.emit("register", { username: user, password: pass });
+});
 
-  const fileInput = document.getElementById('photo-input');
-  const fileSendBtn = document.getElementById('photo-send-btn');
-  const recordBtn = document.getElementById('record-btn');
+socket.on("loginSuccess", (user) => {
+currentUser = user;
+document.getElementById("auth").style.display = "none";
+document.getElementById("chat-container").style.display = "flex";
+showNotification("Inloggen gelukt");
+});
 
-  const friendsList = document.getElementById('friends-list');
-  const addFriendInput = document.getElementById('add-friend-username');
-  const addFriendBtn = document.getElementById('add-friend-btn');
-  const requestsList = document.getElementById('requests-list');
+socket.on("loginError", (msg) => showNotification(msg));
+socket.on("registerSuccess", () => showNotification("Gebruiker gemaakt"));
+socket.on("registerError", (msg) => showNotification(msg));
 
-  const adminToggle = document.getElementById('admin-toggle');
-  const adminPanel = document.getElementById('admin-panel');
-  const suspendBtn = document.getElementById('suspend-btn');
-  const unsuspendBtn = document.getElementById('unsuspend-btn');
-  const suspendUserInput = document.getElementById('suspend-user');
-  const suspendTimeInput = document.getElementById('suspend-time');
-  const unsuspendUserInput = document.getElementById('unsuspend-user');
+// ===== CHAT FUNCTIES =====
+const sendBtn = document.getElementById("send-btn");
+const input = document.getElementById("message-input");
+const messages = document.getElementById("messages");
 
-  const fullscreenViewer = document.getElementById('fullscreen-viewer');
-  const fullscreenImg = document.getElementById('fullscreen-img');
-  const notification = document.getElementById('notification');
+sendBtn?.addEventListener("click", sendMessage);
+input?.addEventListener("keypress", (e) => {
+if (e.key === "Enter") sendMessage();
+});
 
-  const updateToggle = document.getElementById('update-log-toggle');
-  const updateContent = document.getElementById('update-log-content');
+function sendMessage() {
+const text = input.value.trim();
+if (!text) return;
+socket.emit("chatMessage", { chat: currentChat, text });
+input.value = "";
+}
 
-  // Helpers
-  function duoKey(a,b){ return [a,b].sort().join('_'); }
-  function stringToColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return "#"+("000000"+Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6); }
-  function showNotification(msg, type='info', duration=2000){
-    notification.textContent = msg;
-    notification.style.background = type==='error'?'#d73a49':'#2ea44f';
-    notification.classList.add('show');
-    setTimeout(()=>notification.classList.remove('show'),duration);
-  }
+socket.on("chatMessage", (msg) => {
+const div = document.createElement("div");
+div.classList.add("message");
+div.innerHTML = `<span class="username" style="color:${msg.color}">${msg.user}</span>: ${msg.text}`;
+messages.appendChild(div);
+messages.scrollTop = messages.scrollHeight;
+updateTabNotification();
+});
 
-  function formatMessage(text){
-    const urlRegex=/(https?:\/\/[^\s]+)/g;
-    return text.replace(urlRegex,(url)=>{
-      let embed="";
-      if(url.includes("youtube.com/watch?v=") || url.includes("youtu.be/")){
-        const vid = url.includes("youtube.com") ? (new URL(url).searchParams.get('v')) : url.split('/').pop();
-        if(vid) embed=`<br><iframe width="300" height="169" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`;
-      } else if(url.includes("vimeo.com/")) {
-        const vid = url.split('vimeo.com/')[1];
-        if(vid) embed=`<br><iframe src="https://player.vimeo.com/video/${vid}" width="300" height="169" frameborder="0" allowfullscreen></iframe>`;
-      } else if(url.includes('tiktok.com')){
-        embed=`<br><blockquote class="tiktok-embed" cite="${url}" style="max-width:300px;"><a href="${url}">Bekijk TikTok</a></blockquote><script async src="https://www.tiktok.com/embed.js"></script>`;
-      } else if(url.match(/\.(mp4|webm|ogg)$/i)){
-        embed=`<br><video width="300" controls><source src="${url}">Je browser ondersteunt geen video</video>`;
-      } else if(url.match(/\.(mp3|wav|ogg)$/i)){
-        embed=`<br><audio controls><source src="${url}">Je browser ondersteunt geen audio</audio>`;
-      } else if(url.match(/\.(jpg|jpeg|png|gif|webp)$/i)){
-        embed=`<br><img class="clickable-photo" src="${url}" alt="afbeelding">`;
-      }
-      return `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>${embed}`;
-    });
-  }
+// ===== BESTAND UPLOADEN =====
+const fileInput = document.getElementById("file-input");
+const sendFileBtn = document.getElementById("send-file-btn");
 
-  function renderMessage(data){
-    if(!data||!data.id) return;
-    if(document.getElementById(`msg-${data.id}`)) return;
-    const li=document.createElement('li');
-    li.id=`msg-${data.id}`;
-    const userSpan=document.createElement('span');
-    userSpan.textContent=data.user;
-    userSpan.style.color=stringToColor(data.user);
-    userSpan.style.fontWeight='bold';
-    userSpan.style.marginRight='6px';
-    const msgSpan=document.createElement('span');
-    if(data.type==='image') msgSpan.innerHTML=`<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
-    else if(data.type==='audio') msgSpan.innerHTML=`<audio controls src="${data.msg}"></audio>`;
-    else if(data.type==='video') msgSpan.innerHTML=`<video controls src="${data.msg}"></video>`;
-    else msgSpan.innerHTML=formatMessage(data.msg);
-    li.appendChild(userSpan);
-    li.appendChild(msgSpan);
-    li.addEventListener('contextmenu', e=>{
-      e.preventDefault();
-      if(data.user!==username && !isAdmin) return;
-      if(!confirm('Bericht verwijderen?')) return;
-      if(data.privateTo) socket.emit('delete private message',{id:data.id,to:data.privateTo});
-      else socket.emit('delete message',data.id);
-    });
-    messagesList.appendChild(li);
-    li.scrollIntoView({behavior:'smooth',block:'end'});
-    document.title='🟢 Nieuw bericht!';
-    setTimeout(()=>document.title='WebChat',1000);
-  }
+sendFileBtn?.addEventListener("click", () => {
+if (!fileInput.files[0]) return;
+const file = fileInput.files[0];
+const reader = new FileReader();
+reader.onload = () => {
+socket.emit("fileUpload", {
+chat: currentChat,
+name: file.name,
+type: file.type,
+data: reader.result
+});
+};
+reader.readAsArrayBuffer(file);
+});
 
-  // Auth functions
-  async function tryAutoLogin(){
-    if(!username) return;
-    if(adminUsers.includes(username)) isAdmin=true;
-    loginContainer.style.display='none';
-    logoutBtn.style.display='block';
-    chatContainer.style.display='flex';
-    socket.emit('set username',username);
-    showNotification(`Welkom terug, ${username}`);
-    loadFriends();
-  }
+socket.on("fileMessage", (file) => {
+const div = document.createElement("div");
+div.classList.add("message");
+if (file.type.startsWith("image/")) {
+div.innerHTML = `<span class="username">${file.user}</span>: <img src="${file.url}" style="max-width:200px;cursor:pointer" onclick="window.open('${file.url}')">`;
+} else if (file.type.startsWith("video/")) {
+div.innerHTML = `<span class="username">${file.user}</span>: <video controls src="${file.url}" style="max-width:200px"></video>`;
+} else if (file.type.startsWith("audio/")) {
+div.innerHTML = `<span class="username">${file.user}</span>: <audio controls src="${file.url}"></audio>`;
+} else {
+div.innerHTML = `<span class="username">${file.user}</span>: <a href="${file.url}" download="${file.name}">${file.name}</a>`;
+}
+messages.appendChild(div);
+});
 
-  registerBtn.addEventListener('click', async()=>{
-    const user=(registerUsername.value||'').trim();
-    const pass=(registerPassword.value||'').trim();
-    if(!user||!pass) return showNotification('Vul gebruikersnaam en wachtwoord in','error');
-    try{
-      const res=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
-      const data=await res.json();
-      showNotification(data.message||data.error,data.message?'info':'error');
-      if(data.message){ registerUsername.value=''; registerPassword.value=''; }
-    }catch(err){ showNotification('Fout: '+err.message,'error'); }
+// ===== SPRAAK BERICHT =====
+const voiceBtn = document.getElementById("voice-btn");
+let mediaRecorder;
+let chunks = [];
+
+voiceBtn?.addEventListener("mousedown", async () => {
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+mediaRecorder = new MediaRecorder(stream);
+mediaRecorder.start();
+mediaRecorder.ondataavailable = e => chunks.push(e.data);
+});
+
+voiceBtn?.addEventListener("mouseup", () => {
+mediaRecorder.stop();
+mediaRecorder.onstop = () => {
+const blob = new Blob(chunks, { type: "audio/webm" });
+chunks = [];
+const reader = new FileReader();
+reader.onload = () => {
+socket.emit("voiceMessage", { chat: currentChat, data: reader.result });
+};
+reader.readAsArrayBuffer(blob);
+};
+});
+
+socket.on("voiceMessage", (msg) => {
+const div = document.createElement("div");
+div.classList.add("message");
+div.innerHTML = `<span class="username">${msg.user}</span>: <audio controls src="${msg.url}"></audio>`;
+messages.appendChild(div);
+});
+
+// ===== VRIENDEN / PRIVÉCHAT =====
+function sendFriendRequest(username) {
+socket.emit("friendRequest", username);
+}
+socket.on("friendRequest", (from) => {
+showNotification(`${from} heeft je een vriendschapsverzoek gestuurd`);
+// TODO: Accepteren/Weigeren knoppen
+});
+
+// ===== ADMIN FUNCTIES =====
+document.getElementById("ban-btn")?.addEventListener("click", () => {
+const user = document.getElementById("ban-username").value;
+socket.emit("banUser", user);
+});
+
+document.getElementById("unban-btn")?.addEventListener("click", () => {
+const user = document.getElementById("ban-username").value;
+socket.emit("unbanUser", user);
+});
+
+socket.on("banned", () => {
+alert("U bent gebanned!");
+location.reload();
+});
+
+// ===== BELLEN (WebRTC) =====
+const callContainer = document.getElementById("call-container");
+const localVideo = document.getElementById("local-video");
+const remoteVideo = document.getElementById("remote-video");
+
+function startCall(friend) {
+navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+localStream = stream;
+localVideo.srcObject = stream;
+
+```
+peerConnection = new RTCPeerConnection();
+stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+peerConnection.ontrack = event => {
+  remoteVideo.srcObject = event.streams[0];
+};
+
+peerConnection.createOffer().then(offer => {
+  peerConnection.setLocalDescription(offer);
+  socket.emit("callUser", { to: friend, offer });
+});
+
+callContainer.style.display = "flex";
+```
+
+});
+}
+
+socket.on("callUser", async ({ from, offer }) => {
+if (confirm(`${from} belt jou. Opnemen?`)) {
+navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+localStream = stream;
+localVideo.srcObject = stream;
+
+```
+  peerConnection = new RTCPeerConnection();
+  stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+  peerConnection.ontrack = event => {
+    remoteVideo.srcObject = event.streams[0];
+  };
+
+  peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  peerConnection.createAnswer().then(answer => {
+    peerConnection.setLocalDescription(answer);
+    socket.emit("answerCall", { to: from, answer });
   });
 
-  loginBtn.addEventListener('click', async()=>{
-    const user=(loginUsername.value||'').trim();
-    const pass=(loginPassword.value||'').trim();
-    if(!user||!pass) return showNotification('Vul gebruikersnaam en wachtwoord in','error');
-    try{
-      const res=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
-      const data=await res.json();
-      if(data.message){
-        username=user;
-        if(adminUsers.includes(username)) isAdmin=true;
-        localStorage.setItem('username',username);
-        loginContainer.style.display='none';
-        logoutBtn.style.display='block';
-        chatContainer.style.display='flex';
-        socket.emit('set username',username);
-        showNotification('Inloggen gelukt');
-        loadFriends();
-      } else showNotification(data.error||'Login mislukt','error');
-    }catch(err){ showNotification('Fout: '+err.message,'error'); }
-  });
+  callContainer.style.display = "flex";
+});
+```
 
-  logoutBtn.addEventListener('click', ()=>{
-    localStorage.removeItem('username');
-    username=''; isAdmin=false;
-    loginContainer.style.display='block';
-    logoutBtn.style.display='none';
-    chatContainer.style.display='none';
-    messagesList.innerHTML='';
-    currentPrivate=null;
-    showNotification('Uitgelogd');
-  });
+}
+});
 
-  if(username) tryAutoLogin();
+socket.on("answerCall", (answer) => {
+peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+});
 
-  // ------------------ Chat ------------------
-  chatForm.addEventListener('submit', e=>{
-    e.preventDefault();
-    const txt=(messageInput.value||'').trim();
-    if(!txt) return; if(!username) return showNotification('Log eerst in','error');
-    socket.emit('chat message',{user:username,msg:txt,type:'text',privateTo:currentPrivate||undefined});
-    messageInput.value='';
-  });
+// ===== NOTIFICATIES =====
+function showNotification(msg) {
+const container = document.getElementById("notifications");
+const div = document.createElement("div");
+div.classList.add("notification");
+div.textContent = msg;
+container.appendChild(div);
+setTimeout(() => {
+div.style.opacity = 0;
+setTimeout(() => div.remove(), 500);
+}, 2000);
+}
 
-  fileSendBtn.addEventListener('click', ()=>fileInput.click());
-  fileInput.addEventListener('change', ()=>{
-    const file = fileInput.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      let type='text';
-      if(file.type.startsWith('image/')) type='image';
-      else if(file.type.startsWith('video/')) type='video';
-      else if(file.type.startsWith('audio/')) type='audio';
-      socket.emit('chat message',{user:username,msg:reader.result,type,privateTo:currentPrivate||undefined});
-    };
-    reader.readAsDataURL(file);
-    fileInput.value='';
-  });
-
-  recordBtn.addEventListener('click', async ()=>{
-    if(!username) return showNotification('Log eerst in om op te nemen','error');
-    try{
-      if(!mediaRecorder||mediaRecorder.state==='inactive'){
-        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-        mediaRecorder=new MediaRecorder(stream);
-        audioChunks=[]; mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
-        mediaRecorder.onstop=()=>{
-          const blob=new Blob(audioChunks,{type:'audio/webm'});
-          const reader=new FileReader();
-          reader.onload=()=>socket.emit('chat message',{user:username,msg:reader.result,type:'audio',privateTo:currentPrivate||undefined});
-          reader.readAsDataURL(blob);
-        };
-        mediaRecorder.start(); recordBtn.textContent='Stop opnemen';
-      } else if(mediaRecorder.state==='recording'){ mediaRecorder.stop(); recordBtn.textContent='🎤 Opnemen'; }
-    }catch(err){ showNotification('Opname fout: '+err.message,'error'); }
-  });
-
-  // ------------------ Friends ------------------
-  function addRequestElement(from){
-    if([...requestsList.children].some(n=>n.dataset.from===from)) return;
-    const el=document.createElement('div'); el.className='req'; el.dataset.from=from;
-    el.innerHTML=`<span>${from}</span>`;
-    const actions=document.createElement('div'); actions.className='actions';
-    const acc=document.createElement('button'); acc.className='accept'; acc.textContent='Accepteer'; acc.style.background='green'; acc.style.color='white';
-    const rej=document.createElement('button'); rej.className='reject'; rej.textContent='Weiger'; rej.style.background='red'; rej.style.color='white';
-    acc.onclick=()=>respondFriendRequest(from,true,el); rej.onclick=()=>respondFriendRequest(from,false,el);
-    actions.appendChild(acc); actions.appendChild(rej); el.appendChild(actions); requestsList.appendChild(el);
-  }
-
-  function respondFriendRequest(from,accept,el){
-    fetch('/respondFriendRequest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,to:username,accept})})
-      .then(r=>r.json()).then(()=>{ if(el) el.remove(); loadFriends(); })
-      .catch(()=>showNotification('Fout bij beantwoording verzoek','error'));
-  }
-
-  function loadFriends(){
-    if(!username) return;
-    fetch(`/getFriends/${username}`).then(r=>r.json()).then(data=>{
-      friendsList.innerHTML=''; requestsList.innerHTML='';
-      (data.friendRequests||[]).forEach(req=>addRequestElement(req));
-      (data.friends||[]).forEach(f=>{
-        const li=document.createElement('li');
-        const name=document.createElement('span'); name.textContent=f;
-        const chatBtn=document.createElement('button'); chatBtn.textContent='💬'; chatBtn.onclick=()=>openPrivateChat(f);
-        li.appendChild(name); li.appendChild(chatBtn); friendsList.appendChild(li);
-      });
-    }).catch(()=>{});
-  }
-
-  addFriendBtn.addEventListener('click', ()=>{
-    const to=(addFriendInput.value||'').trim();
-    if(!to) return showNotification('Vul gebruikersnaam in','error');
-    if(!username) return showNotification('Log eerst in','error');
-    if(to===username) return showNotification('Je kunt jezelf geen verzoek sturen','error');
-    fetch('/sendFriendRequest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:username,to})})
-      .then(r=>r.json()).then(d=>{ showNotification(d.message||d.error,d.message?'info':'error'); addFriendInput.value=''; })
-      .catch(()=>showNotification('Fout bij versturen verzoek','error'));
-  });
-
-  function openPrivateChat(friend){
-    currentPrivate=friend; threadHeader.style.display='flex';
-    threadTitle.textContent=`Privé met ${friend}`; messagesList.innerHTML='';
-    const key=duoKey(username,friend);
-    const msgs=window.privateThreads[key]||[];
-    msgs.forEach(renderMessage);
-  }
-
-  backToMainBtn.addEventListener('click', ()=>{ currentPrivate=null; threadHeader.style.display='none'; messagesList.innerHTML=''; socket.emit('set username',username); });
-
-  // ------------------ Socket ------------------
-  socket.on('chat history', msgs=>{ if(currentPrivate) return; messagesList.innerHTML=''; (msgs||[]).forEach(renderMessage); });
-  socket.on('chat message', msg=>{ if(msg.privateTo) return; renderMessage(msg); });
-  socket.on('message deleted', id=>{ const el=document.getElementById(`msg-${id}`); if(el) el.remove(); });
-  socket.on('load private chats', threads=>{ window.privateThreads=threads||{}; if(currentPrivate) openPrivateChat(currentPrivate); });
-  socket.on('private message', msg=>{ const key=duoKey(msg.user,msg.privateTo||username); if(!window.privateThreads[key]) window.privateThreads[key]=[]; if(!window.privateThreads[key].some(m=>m.id===msg.id)) window.privateThreads[key].push(msg); if(currentPrivate && duoKey(username,currentPrivate)===key) renderMessage(msg); });
-  socket.on('private message deleted', ({id,to})=>{ const el=document.getElementById(`msg-${id}`); if(el) el.remove(); const key=duoKey(username,to); if(window.privateThreads[key]) window.privateThreads[key]=window.privateThreads[key].filter(m=>m.id!==id); });
-  socket.on('friend request', ({from})=>{ addRequestElement(from); showNotification('Nieuw vriendschapsverzoek van '+from); });
-  socket.on('friends updated', loadFriends);
-
-  // ------------------ Admin / Updates / Media fullscreen ------------------
-  adminToggle.addEventListener('click', ()=>{ adminPanel.style.display=adminPanel.style.display==='none'?'block':'none'; });
-  suspendBtn.addEventListener('click', ()=>{
-    const user=suspendUserInput.value.trim();
-    const time=parseInt(suspendTimeInput.value);
-    if(!user||!time) return showNotification('Vul gebruiker en tijd in','error');
-    fetch('/admin/suspend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,time})}).then(r=>r.json()).then(d=>showNotification(d.message||d.error,d.message?'info':'error'));
-  });
-  unsuspendBtn.addEventListener('click', ()=>{
-    const user=unsuspendUserInput.value.trim();
-    if(!user) return showNotification('Vul gebruiker in','error');
-    fetch('/admin/unsuspend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user})}).then(r=>r.json()).then(d=>showNotification(d.message||d.error,d.message?'info':'error'));
-  });
-
-  messagesList.addEventListener('click', e=>{
-    if(e.target.classList.contains('clickable-photo')){ fullscreenImg.src=e.target.src; fullscreenViewer.style.display='flex'; }
-  });
-  fullscreenViewer.addEventListener('click', ()=>{ fullscreenViewer.style.display='none'; });
-
-  updateToggle.addEventListener('click', ()=>{ updateContent.style.display=updateContent.style.display==='none'?'block':'none'; });
+// ===== TAB NOTIFICATIES =====
+let unread = 0;
+function updateTabNotification() {
+if (document.hidden) {
+unread++;
+document.title = `(${unread}) WebChat`;
+}
+}
+document.addEventListener("visibilitychange", () => {
+if (!document.hidden) {
+unread = 0;
+document.title = "WebChat";
+}
 });

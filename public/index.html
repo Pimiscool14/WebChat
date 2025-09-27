@@ -1,108 +1,106 @@
 ﻿<!DOCTYPE html>
+
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
   <title>WebChat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="Style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Header -->
-  <div class="header">
-    <h1>Welkom bij WebChat</h1>
-    <button id="logout-btn">Uitloggen</button>
-  </div>
-
-  <!-- Update log -->
-  <div id="update-log-container" class="update-log">
-    <button id="update-log-toggle">📜 Updates</button>
-    <div id="update-log-content">
-      <ul id="update-log"></ul>
-    </div>
-  </div>
-
-  <!-- Login -->
-  <div id="login-container">
+  <!-- Login/Register -->
+  <div id="auth">
     <h2>Login</h2>
-    <input id="login-username" type="text" placeholder="Gebruikersnaam">
+    <input id="login-username" placeholder="Gebruikersnaam">
     <input id="login-password" type="password" placeholder="Wachtwoord">
     <button id="login-btn">Login</button>
 
-    <h2>Account maken</h2>
-    <input id="register-username" type="text" placeholder="Gebruikersnaam">
-    <input id="register-password" type="password" placeholder="Wachtwoord">
-    <button id="register-btn">Registreer</button>
+```
+<h2>Account maken</h2>
+<input id="register-username" placeholder="Gebruikersnaam">
+<input id="register-password" type="password" placeholder="Wachtwoord">
+<button id="register-btn">Maak account</button>
+```
+
   </div>
 
   <!-- Chat -->
+
   <div id="chat-container" style="display:none;">
-    <div id="chat-section">
-      <div id="thread-header" style="display:none;">
-        <button id="back-to-main">← Terug naar algemene chat</button>
-        <span id="thread-title"></span>
-      </div>
-
-      <ul id="messages"></ul>
-
-      <form id="chat-form" autocomplete="off">
-        <input id="message" type="text" placeholder="Typ hier je bericht..." required>
-        <button type="submit">Verstuur</button>
-      </form>
-
-      <div class="extra-tools">
-        <div class="file-row">
-          <label for="file-input">📁 Bestand uploader:</label>
-          <input type="file" id="file-input">
-          <button id="file-send-btn" style="display:none;">Versturen</button>
-        </div>
-        <div class="record-row">
-          <button id="record-btn">🎤 Opnemen</button>
-        </div>
-      </div>
+    <div id="header">
+      <button id="logout-btn">Uitloggen</button>
+      <h2>Welkom bij WebChat</h2>
     </div>
 
-    <!-- Sidebar: Friends + Admin -->
-    <aside id="sidebar">
-      <div id="friends-section">
-        <h3>Verzoeken</h3>
-        <div id="requests-list"></div>
+```
+<div id="main">
+  <!-- Chatbox -->
+  <div id="chat">
+    <div id="messages"></div>
+    <div id="message-box">
+      <input id="message-input" placeholder="Typ hier om in de chat te praten">
+      <button id="send-btn">Verstuur</button>
+    </div>
 
-        <h3>Chats</h3>
-        <div class="friend-add">
-          <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
-          <button id="add-friend-btn">Verstuur verzoek</button>
-        </div>
-        <ul id="friends-list"></ul>
-      </div>
+    <div id="upload-section">
+      <input type="file" id="file-input">
+      <button id="send-file-btn">📁 Verstuur bestand</button>
+    </div>
 
-      <!-- Admin panel dropdown -->
-      <div id="admin-panel-container">
-        <button id="admin-toggle">🔧 Admin panel ▼</button>
-        <div id="admin-panel" style="display:none;">
-          <input id="admin-suspend-username" type="text" placeholder="Gebruikersnaam">
-          <input id="admin-suspend-days" type="number" placeholder="Dagen">
-          <input id="admin-suspend-hours" type="number" placeholder="Uren">
-          <input id="admin-suspend-minutes" type="number" placeholder="Minuten">
-          <button id="admin-suspend-btn">Schorsen</button>
-          <input id="admin-unsuspend-username" type="text" placeholder="Gebruikersnaam vrijgeven">
-          <button id="admin-unsuspend-btn">Vrijgeven</button>
-        </div>
-      </div>
+    <div id="voice-section">
+      <button id="voice-btn">🎤 Spraakbericht</button>
+    </div>
 
-      <!-- Games knop -->
-      <div id="games-container">
-        <button id="games-btn">🎮 Games</button>
-      </div>
-    </aside>
+    <div id="games-section">
+      <button id="games-btn">🎮 Games</button>
+    </div>
   </div>
 
-  <div id="friend-request-popup"></div>
-  <div id="fullscreen-viewer" style="display:none;">
-    <img id="fullscreen-img" src="" alt="preview">
+  <!-- Friends/Groups -->
+  <div id="sidebar">
+    <h3>Vrienden</h3>
+    <div id="friend-requests"></div>
+    <div id="friends"></div>
+
+    <h3>Chats</h3>
+    <div id="private-chats"></div>
+
+    <h3>Groepen</h3>
+    <div id="groups"></div>
   </div>
-  <div id="notification"></div>
+</div>
+
+<!-- Admin panel -->
+<div id="admin-panel" style="display:none;">
+  <h3>Admin Panel</h3>
+  <input id="ban-username" placeholder="Gebruikersnaam">
+  <input id="ban-days" type="number" placeholder="Dagen">
+  <input id="ban-hours" type="number" placeholder="Uren">
+  <input id="ban-minutes" type="number" placeholder="Minuten">
+  <button id="ban-btn">Schorsen</button>
+  <input id="unban-username" placeholder="Gebruiker vrijgeven">
+  <button id="unban-btn">Vrijgeven</button>
+</div>
+```
+
+  </div>
+
+  <!-- Videocall -->
+
+  <div id="call-container" style="display:none;">
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+    <button id="end-call">Ophangen</button>
+    <button id="toggle-mic">Mic aan/uit</button>
+    <button id="toggle-cam">Cam aan/uit</button>
+  </div>
+
+  <!-- Notifications -->
+
+  <div id="notifications"></div>
 
   <script src="/socket.io/socket.io.js"></script>
+
   <script src="script.js"></script>
+
 </body>
 </html>

@@ -1,165 +1,260 @@
+/* Algemene styling */
 body {
-  font-family: Arial;
-  background:#121212;
-  color:#eee;
-  margin:0;
-  padding:20px;
+margin: 0;
+font-family: Arial, sans-serif;
+background: #f4f4f9;
+color: #333;
 }
-.header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-#logout-btn {
-  background:#d73a49;
-  color:#fff;
-  padding:6px 12px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-}
-#logout-btn:hover { background:#a82b3a; }
 
+h2, h3 {
+margin: 10px 0;
+}
+
+/* Login/Register scherm */
+#auth {
+width: 300px;
+margin: 100px auto;
+padding: 20px;
+background: white;
+border-radius: 10px;
+box-shadow: 0 0 10px rgba(0,0,0,0.1);
+text-align: center;
+}
+
+#auth input, #auth button {
+display: block;
+width: 90%;
+margin: 10px auto;
+padding: 10px;
+border-radius: 5px;
+border: 1px solid #ddd;
+}
+
+#auth button {
+background: #4CAF50;
+color: white;
+border: none;
+cursor: pointer;
+}
+
+#auth button:hover {
+background: #45a049;
+}
+
+/* Chat container */
 #chat-container {
-  display:flex;
-  gap:12px;
-  width:90%;
-  max-width:1100px;
-  margin:0 auto;
+display: flex;
+flex-direction: column;
+height: 100vh;
 }
-#chat-section {
-  width:65%;
-  border:1px solid #333;
-  background:#1e1e1e;
-  border-radius:8px;
-  padding:12px;
+
+#header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 10px;
+background: #4CAF50;
+color: white;
 }
+
+#main {
+flex: 1;
+display: flex;
+}
+
+/* Chat */
+#chat {
+flex: 3;
+display: flex;
+flex-direction: column;
+background: white;
+border-right: 1px solid #ddd;
+}
+
 #messages {
-  list-style:none;
-  padding:8px;
-  height:320px;
-  overflow-y:auto;
-  background:rgba(0,0,0,0.05);
-  border-radius:6px;
-}
-#messages li {
-  margin:6px 0;
-  padding:8px;
-  background:#2a2a2a;
-  border-radius:6px;
-  word-break:break-word;
-}
-input, button {
-  padding:8px;
-  border-radius:6px;
-  border:none;
-}
-button {
-  background:#6200ee;
-  color:white;
-  cursor:pointer;
-  margin-left:6px;
-}
-button:hover { background:#3700b3; }
-
-.extra-tools {
-  margin-top:10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.file-row, .record-row {
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-img { max-width:300px; border-radius:8px; margin-top:6px; display:block; cursor:pointer; }
-audio, video, iframe { margin-top:6px; border-radius:6px; display:block; }
-
-#sidebar {
-  width:30%;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-#friends-section {
-  border:1px solid #333;
-  background:#1e1e1e;
-  padding:12px;
-  height:60vh;
-  overflow-y:auto;
-  border-radius:8px;
-}
-.friend-add { display:flex; gap:6px; margin-bottom:8px; }
-#friends-list li {
-  display:flex;
-  justify-content:space-between;
-  padding:6px;
-  background:#222;
-  border-radius:6px;
-  margin-bottom:6px;
+flex: 1;
+padding: 10px;
+overflow-y: auto;
+border-bottom: 1px solid #ddd;
 }
 
-#requests-list .accept { background: #2ea44f; color: #fff; margin-right: 6px; }
-#requests-list .reject { background: #d73a49; color: #fff; }
-
-#admin-panel-container { margin-top:12px; }
-#admin-panel {
-  border:1px solid #333;
-  background:#1e1e1e;
-  padding:8px;
-  border-radius:6px;
-  margin-top:4px;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
+.message {
+margin: 5px 0;
 }
-#admin-panel input, #admin-panel button { width:100%; }
+
+.username {
+font-weight: bold;
+margin-right: 5px;
+}
+
+#message-box {
+display: flex;
+border-top: 1px solid #ddd;
+}
+
+#message-input {
+flex: 1;
+padding: 10px;
+border: none;
+outline: none;
+}
+
+#send-btn {
+background: #4CAF50;
+border: none;
+color: white;
+padding: 10px 15px;
+cursor: pointer;
+}
+
+#send-btn:hover {
+background: #45a049;
+}
+
+/* Bestand upload */
+#upload-section {
+padding: 10px;
+border-top: 1px solid #ddd;
+}
+
+#send-file-btn {
+background: #2196F3;
+color: white;
+border: none;
+padding: 8px;
+border-radius: 5px;
+cursor: pointer;
+}
+
+#send-file-btn:hover {
+background: #1976D2;
+}
+
+/* Spraak bericht knop */
+#voice-section {
+padding: 10px;
+}
+
+#voice-btn {
+background: #FF5722;
+color: white;
+border: none;
+padding: 8px;
+border-radius: 5px;
+cursor: pointer;
+}
+
+#voice-btn:hover {
+background: #E64A19;
+}
+
+/* Games knop */
+#games-section {
+padding: 10px;
+}
 
 #games-btn {
-  width:100%;
-  background:#4caf50;
-}
-#games-btn:hover { background:#388e3c; }
-
-#fullscreen-viewer {
-  position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background: rgba(0,0,0,0.9);
-  z-index:2000;
-}
-#fullscreen-viewer img {
-  max-width:90%;
-  max-height:90%;
-  cursor:pointer;
-  border-radius:6px;
-}
-#notification {
-  position:fixed;
-  top:50%; left:50%;
-  transform: translate(-50%, -50%);
-  padding:12px 24px;
-  border-radius:8px;
-  color:#fff;
-  font-weight:bold;
-  z-index:3000;
-  opacity:0;
-  transition: opacity 0.3s ease;
-}
-#notification.show { opacity:1; }
-
-#update-log-content {
-  display:none;
-  background:#222;
-  padding:8px;
-  border-radius:6px;
-  margin-top:4px;
+background: #9C27B0;
+color: white;
+border: none;
+padding: 8px;
+border-radius: 5px;
+cursor: pointer;
 }
 
-@media(max-width:900px){
-  #chat-container{ flex-direction:column; }
-  #chat-section,#sidebar{ width:100%; margin-bottom:12px; }
+#games-btn:hover {
+background: #7B1FA2;
+}
+
+/* Sidebar */
+#sidebar {
+flex: 1;
+padding: 10px;
+background: #f9f9f9;
+border-left: 1px solid #ddd;
+overflow-y: auto;
+}
+
+#sidebar h3 {
+margin-top: 15px;
+}
+
+/* Admin panel */
+#admin-panel {
+padding: 15px;
+background: #fff3e0;
+border-top: 2px solid #ff9800;
+}
+
+#admin-panel input, #admin-panel button {
+display: block;
+margin: 8px 0;
+padding: 8px;
+width: 90%;
+}
+
+#ban-btn {
+background: #f44336;
+color: white;
+border: none;
+cursor: pointer;
+}
+
+#unban-btn {
+background: #4CAF50;
+color: white;
+border: none;
+cursor: pointer;
+}
+
+/* Videocall */
+#call-container {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.8);
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+}
+
+#call-container video {
+max-width: 80%;
+border: 2px solid white;
+border-radius: 10px;
+margin: 5px;
+}
+
+#call-container button {
+margin: 5px;
+padding: 10px 15px;
+border: none;
+border-radius: 5px;
+cursor: pointer;
+}
+
+#end-call { background: red; color: white; }
+#toggle-mic { background: #2196F3; color: white; }
+#toggle-cam { background: #FF9800; color: white; }
+
+/* Notifications */
+#notifications {
+position: fixed;
+top: 20px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 9999;
+}
+
+.notification {
+background: #323232;
+color: white;
+padding: 10px 15px;
+margin: 5px 0;
+border-radius: 5px;
+opacity: 0.9;
+transition: opacity 0.5s ease-out;
 }
