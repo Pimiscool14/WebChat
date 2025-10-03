@@ -1,250 +1,187 @@
-/*********************************************************************************************
- * SERVER.JS – WebChat Backend
- * Features:
- * - Express server + Socket.io
- * - Login & registratie (accounts in JSON file)
- * - Realtime chat (algemeen + privé + groepen)
- * - Bestanden uploaden en versturen
- * - Vriendensysteem (verzoeken accepteren/weigeren)
- * - Admin functies (ban, unban)
- * - Schorsingen (dagen, uren, minuten)
- * - Notificaties
- * - Audio/video bellen via WebRTC
- *********************************************************************************************/
-
-const express = require("express");
-const http = require("http");
-const socketIO = require("socket.io");
-const fs = require("fs");
-const path = require("path");
-const multer = require("multer");
-
+const express = require('express');
 const app = express();
-const server = http.createServer(app);
-const io = socketIO(server);
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
-// === Data opslag ===
-const DATA_DIR = path.join(__dirname, "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-const BANS_FILE = path.join(DATA_DIR, "bans.json");
+app.use(express.static('public'));
+app.use(express.json({ limit: '20mb' }));
 
-// Zorg dat data directory bestaat
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "{}");
-if (!fs.existsSync(BANS_FILE)) fs.writeFileSync(BANS_FILE, "{}");
+const accountsFile = path.join(__dirname, 'accounts.json');
+const mainChatFile = path.join(__dirname, 'mainChat.json');
+const privateChatFile = path.join(__dirname, 'privateChat.json');
 
-let users = JSON.parse(fs.readFileSync(USERS_FILE));
-let bans = JSON.parse(fs.readFileSync(BANS_FILE));
+// Ensure JSON files exist
+if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
+if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
+if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
-// === Middleware ===
-app.use(express.static("public"));
-app.use(express.json());
+function loadJSON(file) { return JSON.parse(fs.readFileSync(file)); }
+function saveJSON(file, data) { fs.writeFileSync(file, JSON.stringify(data, null, 2)); }
+function duoKey(a, b){ return [a,b].sort().join('_'); }
 
-// === Multer setup (uploads) ===
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, "uploads");
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-const upload = multer({ storage });
+const online = new Map(); // username -> socket.id
 
-// Upload API
-app.post("/upload", upload.single("file"), (req, res) => {
-  res.json({ filePath: `/uploads/${req.file.filename}` });
-});
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// === Helpers ===
-function saveUsers() {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-function saveBans() {
-  fs.writeFileSync(BANS_FILE, JSON.stringify(bans, null, 2));
-}
-function isBanned(username) {
-  if (!bans[username]) return false;
-  const banInfo = bans[username];
-  if (banInfo.permanent) return true;
-  if (Date.now() < banInfo.expires) return true;
-  delete bans[username];
-  saveBans();
-  return false;
-}
-function getBanMessage(username) {
-  if (!bans[username]) return "";
-  const banInfo = bans[username];
-  if (banInfo.permanent) return "U bent permanent geblokkeerd.";
-  const remaining = banInfo.expires - Date.now();
-  const mins = Math.floor(remaining / 60000);
-  return `U bent nog ${mins} minuten geblokkeerd.`;
-}
-
-// === Socket.io logica ===
-let onlineUsers = {}; // { socket.id: username }
-let friends = {}; // { username: [vriendenlijst] }
-let privateChats = {}; // { chatId: [participants] }
-let groups = {}; // { groupId: {name, members} }
-
-io.on("connection", (socket) => {
-  console.log("Nieuwe gebruiker verbonden:", socket.id);
-
-  // Inloggen
-  socket.on("login", ({ username, password }, cb) => {
-    if (!users[username]) {
-      cb({ success: false, msg: "Gebruiker niet gevonden" });
-      return;
-    }
-    if (isBanned(username)) {
-      cb({ success: false, msg: getBanMessage(username) });
-      return;
-    }
-    if (users[username].password !== password) {
-      cb({ success: false, msg: "Fout wachtwoord" });
-      return;
-    }
-    onlineUsers[socket.id] = username;
-    cb({ success: true, msg: "Inloggen gelukt", username });
-    io.emit("userOnline", username);
-  });
-
-  // Registreren
-  socket.on("register", ({ username, password }, cb) => {
-    if (users[username]) {
-      cb({ success: false, msg: "Gebruiker bestaat al" });
-      return;
-    }
-    users[username] = { password, color: getRandomColor() };
-    saveUsers();
-    cb({ success: true, msg: "Gebruiker gemaakt" });
-  });
-
-  // Bericht sturen
-  socket.on("sendMessage", ({ msg, to }) => {
-    const username = onlineUsers[socket.id];
-    if (!username) return;
-    const payload = { user: username, color: users[username].color, msg };
-
-    if (!to) {
-      io.emit("message", payload); // algemene chat
-    } else if (friends[username]?.includes(to)) {
-      io.to(getSocketByUser(to)).emit("privateMessage", payload);
-      socket.emit("privateMessage", payload);
-    }
-  });
-
-  // Bestand delen
-  socket.on("sendFile", ({ fileUrl, type, to }) => {
-    const username = onlineUsers[socket.id];
-    if (!username) return;
-    const payload = { user: username, fileUrl, type };
-
-    if (!to) {
-      io.emit("fileMessage", payload);
-    } else if (friends[username]?.includes(to)) {
-      io.to(getSocketByUser(to)).emit("fileMessage", payload);
-      socket.emit("fileMessage", payload);
-    }
-  });
-
-  // Vriend toevoegen
-  socket.on("friendRequest", ({ to }) => {
-    const from = onlineUsers[socket.id];
-    if (!from || !users[to]) return;
-    io.to(getSocketByUser(to)).emit("friendRequest", { from });
-  });
-
-  socket.on("friendAccept", ({ from }) => {
-    const to = onlineUsers[socket.id];
-    if (!friends[to]) friends[to] = [];
-    if (!friends[from]) friends[from] = [];
-    friends[to].push(from);
-    friends[from].push(to);
-    io.to(getSocketByUser(from)).emit("friendAccepted", { to });
-    socket.emit("friendAccepted", { to: from });
-  });
-
-  // Admin acties
-  socket.on("banUser", ({ target, minutes, hours, days, permanent }) => {
-    const admin = onlineUsers[socket.id];
-    if (!admin) return;
-    if (!users[target]) return;
-    if (admin === target) return;
-
-    if (permanent) {
-      bans[target] = { permanent: true };
-    } else {
-      const duration =
-        (parseInt(minutes || 0) * 60000) +
-        (parseInt(hours || 0) * 3600000) +
-        (parseInt(days || 0) * 86400000);
-      bans[target] = { permanent: false, expires: Date.now() + duration };
-    }
-    saveBans();
-
-    const targetSocket = getSocketByUser(target);
-    if (targetSocket) {
-      io.to(targetSocket).emit("forceLogout", { reason: getBanMessage(target) });
-      io.sockets.sockets.get(targetSocket).disconnect();
-    }
-  });
-
-  socket.on("unbanUser", ({ target }) => {
-    delete bans[target];
-    saveBans();
-  });
-
-  // Uitloggen
-  socket.on("logout", () => {
-    const username = onlineUsers[socket.id];
-    if (username) {
-      delete onlineUsers[socket.id];
-      io.emit("userOffline", username);
-    }
-  });
-
-  // Verbinding sluiten
-  socket.on("disconnect", () => {
-    const username = onlineUsers[socket.id];
-    if (username) {
-      delete onlineUsers[socket.id];
-      io.emit("userOffline", username);
-    }
-    console.log("Verbinding verbroken:", socket.id);
-  });
+// ----- Auth Endpoints -----
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+  const accounts = loadJSON(accountsFile);
+  if (accounts.find(a => a.username === username)) return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
+  const hashed = await bcrypt.hash(password, 10);
+  accounts.push({ username, password: hashed, friends: [], friendRequests: [] });
+  saveJSON(accountsFile, accounts);
+  res.send({ message: 'Account aangemaakt!' });
 });
 
-// === Helpers ===
-function getSocketByUser(username) {
-  for (let id in onlineUsers) {
-    if (onlineUsers[id] === username) return id;
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === username);
+  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
+  res.send({ message: 'Inloggen gelukt!' });
+});
+
+// ----- Friend system -----
+app.get('/getFriends/:username', (req, res) => {
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === req.params.username);
+  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
+});
+
+app.post('/sendFriendRequest', (req, res) => {
+  const { from, to } = req.body || {};
+  if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
+  const accounts = loadJSON(accountsFile);
+  const sender = accounts.find(u => u.username === from);
+  const receiver = accounts.find(u => u.username === to);
+  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  if (from === to) return res.status(400).send({ error: 'Je kunt jezelf geen verzoek sturen' });
+  if ((receiver.friends || []).includes(from)) return res.status(400).send({ error: 'Jullie zijn al vrienden' });
+  receiver.friendRequests = receiver.friendRequests || [];
+  if (receiver.friendRequests.includes(from)) return res.status(400).send({ error: 'Verzoek al verstuurd' });
+  receiver.friendRequests.push(from);
+  saveJSON(accountsFile, accounts);
+
+  // Notify receiver if online
+  const recvSock = online.get(to);
+  if (recvSock) io.to(recvSock).emit('friend request', { from });
+
+  // Notify sender
+  const sndSock = online.get(from);
+  if (sndSock) io.to(sndSock).emit('friends updated');
+
+  res.send({ message: 'Verzoek verstuurd!' });
+});
+
+app.post('/respondFriendRequest', (req, res) => {
+  const { from, to, accept } = req.body || {};
+  if (!from || !to || typeof accept === 'undefined') return res.status(400).send({ error: 'Onvolledige data' });
+  const accounts = loadJSON(accountsFile);
+  const sender = accounts.find(u => u.username === from);
+  const receiver = accounts.find(u => u.username === to);
+  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  receiver.friendRequests = (receiver.friendRequests || []).filter(x => x !== from);
+  if (accept) {
+    receiver.friends = receiver.friends || [];
+    sender.friends = sender.friends || [];
+    if (!receiver.friends.includes(from)) receiver.friends.push(from);
+    if (!sender.friends.includes(to)) sender.friends.push(to);
+
+    const key = duoKey(from, to);
+    const allPrivate = loadJSON(privateChatFile);
+    if (!allPrivate[key]) allPrivate[key] = [];
+    saveJSON(privateChatFile, allPrivate);
   }
-  return null;
-}
-function getRandomColor() {
-  const colors = ["#e6194B", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
-    "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe",
-    "#008080", "#e6beff", "#9A6324", "#fffac8", "#800000",
-    "#aaffc3", "#808000", "#ffd8b1", "#000075", "#808080"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+  saveJSON(accountsFile, accounts);
 
-// === Start server ===
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log("Server gestart op poort", PORT);
+  // Notify both users
+  [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
+
+  res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
-/*********************************************************************************************
- * Padding logs (om de lengte >16k te maken)
- *********************************************************************************************/
-function paddingLogs() {
-  console.log("DEBUG: Extra loglijn voor padding...");
-}
-for (let i = 0; i < 1200; i++) {
-  paddingLogs();
-}
+// ----- Socket.IO -----
+io.on('connection', socket => {
+  console.log('Socket connected:', socket.id);
+
+  socket.on('set username', uname => {
+    if(!uname) return;
+    socket.username = uname;
+    online.set(uname, socket.id);
+
+    socket.emit('chat history', loadJSON(mainChatFile));
+
+    const allPrivate = loadJSON(privateChatFile);
+    const userThreads = {};
+    Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
+    socket.emit('load private chats', userThreads);
+
+    socket.emit('friends updated');
+  });
+
+  socket.on('chat message', data => {
+    const msg = { id: Date.now(), ...data };
+    if(data.privateTo) {
+      const accounts = loadJSON(accountsFile);
+      const me = accounts.find(u => u.username === socket.username);
+      const other = accounts.find(u => u.username === data.privateTo);
+      if(!me || !other) return;
+      if(!((me.friends||[]).includes(other.username) && (other.friends||[]).includes(me.username))) return;
+
+      const key = duoKey(socket.username, data.privateTo);
+      const allPrivate = loadJSON(privateChatFile);
+      if(!allPrivate[key]) allPrivate[key] = [];
+      allPrivate[key].push(msg);
+      saveJSON(privateChatFile, allPrivate);
+
+      io.to(socket.id).emit('private message', msg);
+      const otherSock = online.get(data.privateTo);
+      if(otherSock) io.to(otherSock).emit('private message', msg);
+    } else {
+      const allMain = loadJSON(mainChatFile);
+      allMain.push(msg);
+      saveJSON(mainChatFile, allMain);
+      io.emit('chat message', msg);
+    }
+  });
+
+  socket.on('delete message', id => {
+    let allMain = loadJSON(mainChatFile);
+    const msg = allMain.find(m => m.id === id);
+    if(!msg || msg.user !== socket.username) return;
+    allMain = allMain.filter(m => m.id !== id);
+    saveJSON(mainChatFile, allMain);
+    io.emit('message deleted', id);
+  });
+
+  socket.on('delete private message', ({ id, to }) => {
+    if(!to) return;
+    const key = duoKey(socket.username, to);
+    const allPrivate = loadJSON(privateChatFile);
+    if(!allPrivate[key]) return;
+    const msg = allPrivate[key].find(m => m.id === id);
+    if(!msg || msg.user !== socket.username) return;
+    allPrivate[key] = allPrivate[key].filter(m => m.id !== id);
+    saveJSON(privateChatFile, allPrivate);
+
+    io.to(socket.id).emit('private message deleted', { id, to });
+    const otherSock = online.get(to);
+    if(otherSock) io.to(otherSock).emit('private message deleted', { id, to });
+  });
+
+  socket.on('disconnect', () => {
+    if(socket.username) online.delete(socket.username);
+    console.log('Socket disconnected:', socket.id);
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log(`Server draait op port ${PORT}`));

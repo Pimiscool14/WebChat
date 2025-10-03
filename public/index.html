@@ -1,98 +1,74 @@
 ﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>WebChat</title>
-  <link rel="stylesheet" href="Style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <h1>Welkom bij WebChat</h1>
+  <button id="logout-btn">Uitloggen</button>
 
-  <!-- ==================== LOGIN & REGISTER ==================== -->
-  <div id="authContainer">
-    <h2>WebChat Login</h2>
-    <input type="text" id="loginUsername" placeholder="Gebruikersnaam">
-    <input type="password" id="loginPassword" placeholder="Wachtwoord">
-    <button id="loginBtn">Inloggen</button>
-    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #555;">
+  <div id="login-container">
+    <h2>Login</h2>
+    <input id="login-username" type="text" placeholder="Gebruikersnaam">
+    <input id="login-password" type="password" placeholder="Wachtwoord">
+    <button id="login-btn">Login</button>
+
     <h2>Account maken</h2>
-    <input type="text" id="registerUsername" placeholder="Gebruikersnaam">
-    <input type="password" id="registerPassword" placeholder="Wachtwoord">
-    <button id="registerBtn">Registreren</button>
+    <input id="register-username" type="text" placeholder="Gebruikersnaam">
+    <input id="register-password" type="password" placeholder="Wachtwoord">
+    <button id="register-btn">Registreer</button>
   </div>
 
-  <!-- ==================== CHAT MAIN ==================== -->
-  <div id="chatContainer" style="display:none;">
-    <!-- HEADER -->
-    <header>
-      <h1>Welkom bij WebChat</h1>
-      <button id="logoutBtn">Uitloggen</button>
-    </header>
+  <div id="chat-container" style="display:none;">
+    <div id="chat-section">
+      <div id="thread-header" style="display:none;">
+        <button id="back-to-main">← Terug naar algemene chat</button>
+        <span id="thread-title"></span>
+      </div>
 
-    <!-- SIDEBAR (links) -->
-    <div id="sidebar">
-      <button id="gamesBtn">🎮 Games</button>
+      <ul id="messages"></ul>
+
+      <form id="chat-form" autocomplete="off">
+        <input id="message" type="text" placeholder="Typ hier je bericht..." required>
+        <button type="submit">Verstuur</button>
+      </form>
+
+      <div class="extra-tools">
+        <div class="photo-row">
+          <label for="photo-input">📷 Foto:</label>
+          <input type="file" id="photo-input" accept="image/*">
+          <button id="photo-send-btn" style="display:none;">Versturen</button>
+        </div>
+        <div class="record-row">
+          <button id="record-btn">🎤 Opnemen</button>
+        </div>
+      </div>
     </div>
 
-    <!-- CHAT BOX -->
-    <div id="chatBox"></div>
+    <aside id="friends-section" style="display:none;">
+      <h3>Verzoeken</h3>
+      <div id="requests-list"></div>
 
-    <!-- INPUT BAR -->
-    <div id="inputBar">
-      <input type="text" id="chatInput" placeholder="Typ hier om in de chat te praten...">
-      <button id="sendBtn">Verstuur</button>
-      <div id="uploadContainer">
-        <label for="fileUpload">📎</label>
-        <input type="file" id="fileUpload" multiple>
-        <button id="sendFileBtn">Bestand versturen</button>
+      <h3>Chats</h3>
+      <div class="friend-add">
+        <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
+        <button id="add-friend-btn">Verstuur verzoek</button>
       </div>
-      <button id="voiceRecordBtn">🎤</button>
-    </div>
 
-    <!-- FRIENDS + ADMIN (rechts) -->
-    <div id="friendsPanel">
-      <h3>Vrienden</h3>
-      <div id="friendRequests">
-        <h4>Verzoeken</h4>
-        <div id="requestList"></div>
-      </div>
-      <div id="friendsList">
-        <h4>Chats</h4>
-        <div id="friendListContainer"></div>
-      </div>
-      <div id="groupsPanel">
-        <h4>Groepen</h4>
-        <div id="groupListContainer"></div>
-      </div>
-      <div id="adminDropdown" style="display:none;">
-        <h4>Admin Panel</h4>
-        <input type="text" id="banUser" placeholder="Gebruiker schorsen">
-        <input type="number" id="banDays" placeholder="Dagen">
-        <input type="number" id="banHours" placeholder="Uren">
-        <input type="number" id="banMinutes" placeholder="Minuten">
-        <button id="banBtn">Schorsen</button>
-        <input type="text" id="unbanUser" placeholder="Gebruiker vrijgeven">
-        <button id="unbanBtn">Vrijgeven</button>
-      </div>
-    </div>
+      <ul id="friends-list"></ul>
+    </aside>
   </div>
 
-  <!-- ==================== CALL OVERLAY ==================== -->
-  <div id="callOverlay">
-    <video id="remoteVideo" autoplay></video>
-    <video id="localVideo" autoplay muted></video>
-    <div id="callControls">
-      <button id="endCallBtn">Ophangen</button>
-      <button id="toggleMicBtn">Mic uit/aan</button>
-      <button id="toggleCamBtn">Camera uit/aan</button>
-    </div>
+  <div id="friend-request-popup"></div>
+  <div id="fullscreen-viewer" style="display:none;">
+    <img id="fullscreen-img" src="" alt="preview">
   </div>
+  <div id="notification"></div>
 
-  <!-- ==================== NOTIFICATIONS ==================== -->
-  <div id="notifications"></div>
-
-  <!-- ==================== SCRIPTS ==================== -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
-
 </body>
 </html>
