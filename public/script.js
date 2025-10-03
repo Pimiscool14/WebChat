@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const messageInput = document.getElementById('message');
   const messagesList = document.getElementById('messages');
 
-  const photoInput = document.getElementById('photo-input');
-  const photoSendBtn = document.getElementById('photo-send-btn');
+  const fileInput = document.getElementById('file-input');
+  const fileSendBtn = document.getElementById('file-send-btn');
   const recordBtn = document.getElementById('record-btn');
 
   const friendsSection = document.getElementById('friends-section');
@@ -89,9 +89,17 @@ document.addEventListener('DOMContentLoaded', () => {
     userSpan.style.marginRight = '6px';
 
     const msgSpan = document.createElement('span');
-    if (data.type === 'image') msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
-    else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
-    else msgSpan.innerHTML = formatMessage(data.msg);
+    if (data.type === 'image') {
+  msgSpan.innerHTML = `<img class="clickable-media" data-type="image" src="${data.msg}" alt="${data.fileName || 'afbeelding'}">`;
+} else if (data.type === 'video') {
+  msgSpan.innerHTML = `<video class="clickable-media" data-type="video" src="${data.msg}" style="max-width:200px;cursor:pointer;" muted></video>`;
+} else if (data.type === 'audio') {
+  msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
+} else if (data.type === 'file') {
+  msgSpan.innerHTML = `<a href="${data.msg}" download="${data.fileName || 'bestand'}">📎 Download ${data.fileName || 'bestand'}</a>`;
+} else {
+  msgSpan.innerHTML = formatMessage(data.msg);
+}
 
     li.appendChild(userSpan);
     li.appendChild(msgSpan);
@@ -240,25 +248,67 @@ document.addEventListener('DOMContentLoaded', () => {
     messageInput.value = '';
   });
 
-  // photo
-  photoInput.addEventListener('change', () => { photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; });
-  photoSendBtn.addEventListener('click', () => {
-    const file = photoInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type: 'image', privateTo: currentPrivate || undefined });
-    reader.readAsDataURL(file);
-    photoInput.value = ''; photoSendBtn.style.display = 'none';
-  });
+  // Bestanden uploader
+  fileInput.addEventListener('change', () => { 
+  fileSendBtn.style.display = (fileInput.files && fileInput.files.length) ? 'inline-block' : 'none'; 
+});
+
+fileSendBtn.addEventListener('click', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    let type = 'file';
+    if (file.type.startsWith('image/')) type = 'image';
+    else if (file.type.startsWith('video/')) type = 'video';
+    else if (file.type.startsWith('audio/')) type = 'audio';
+
+    socket.emit('chat message', { 
+      user: username, 
+      msg: reader.result, 
+      fileName: file.name, 
+      fileType: file.type, 
+      type, 
+      privateTo: currentPrivate || undefined 
+    });
+  };
+  reader.readAsDataURL(file);
+
+  fileInput.value = '';
+  fileSendBtn.style.display = 'none';
+});
 
   // fullscreen viewer
   document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('clickable-photo')) {
-      fullscreenImg.src = e.target.src;
-      fullscreenViewer.style.display = 'flex';
+  if (e.target.classList.contains('clickable-media')) {
+    fullscreenViewer.innerHTML = ''; // maak leeg
+    const type = e.target.dataset.type;
+
+    if (type === 'image') {
+      const img = document.createElement('img');
+      img.src = e.target.src;
+      img.style.maxWidth = '90%';
+      img.style.maxHeight = '90%';
+      fullscreenViewer.appendChild(img);
+    } else if (type === 'video') {
+      const vid = document.createElement('video');
+      vid.src = e.target.src;
+      vid.controls = true;
+      vid.autoplay = true;
+      vid.style.maxWidth = '90%';
+      vid.style.maxHeight = '90%';
+      fullscreenViewer.appendChild(vid);
     }
-  });
-  fullscreenViewer.addEventListener('click', () => { fullscreenViewer.style.display = 'none'; fullscreenImg.src = ''; });
+
+    fullscreenViewer.style.display = 'flex';
+  }
+});
+
+fullscreenViewer.addEventListener('click', () => {
+  fullscreenViewer.style.display = 'none';
+  fullscreenViewer.innerHTML = '';
+});
 
   // audio recorder
   recordBtn.addEventListener('click', async () => {
