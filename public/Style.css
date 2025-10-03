@@ -52,7 +52,7 @@ h1 { margin-bottom: 12px; }
 }
 
 #chat-section {
-  width: 65%;
+  flex: 2; /* 2/3 van container */
   min-width: 300px;
   border: 1px solid #333;
   padding: 12px;
@@ -110,7 +110,8 @@ audio { margin-top:6px; display:block; }
 
 /* friends sidebar */
 #friends-section {
-  width: 34%;
+  /* display: block;  ← verwijder dit */
+  flex: 1; /* laat het 1/3 van de container nemen */
   min-width: 200px;
   border: 1px solid #333;
   padding: 12px;
@@ -118,7 +119,9 @@ audio { margin-top:6px; display:block; }
   border-radius: 8px;
   height: 70vh;
   overflow-y: auto;
-  display: block; /* altijd block zodat flex werkt */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 @media (max-width: 900px) {
