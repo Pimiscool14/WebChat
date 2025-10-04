@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Bestanden uploader
-  fileInput.addEventListener('change', () => { 
+fileInput.addEventListener('change', () => { 
   fileSendBtn.style.display = (fileInput.files && fileInput.files.length) ? 'inline-block' : 'none'; 
 });
 
@@ -277,6 +277,44 @@ fileSendBtn.addEventListener('click', () => {
 
   fileInput.value = '';
   fileSendBtn.style.display = 'none';
+});
+
+// Nieuwe Toevoegen methode (via server upload)
+fileSendBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+
+    // type bepalen: image / video / audio / file
+    let type = 'file';
+    if (data.type.startsWith('image/')) type = 'image';
+    else if (data.type.startsWith('video/')) type = 'video';
+    else if (data.type.startsWith('audio/')) type = 'audio';
+
+    // bericht uitsturen
+    socket.emit('chat message', { 
+      user: username, 
+      msg: data.url, 
+      fileName: data.name, 
+      fileType: data.type, 
+      type, 
+      privateTo: currentPrivate || undefined 
+    });
+
+    fileInput.value = '';
+    fileSendBtn.style.display = 'none';
+  } catch (err) {
+    console.error('Upload mislukt:', err);
+  }
 });
 
   // fullscreen viewer
