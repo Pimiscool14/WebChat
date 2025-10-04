@@ -9,11 +9,16 @@ const path = require('path');
 app.use(express.static('public'));
 app.use(express.json({ limit: '20mb' }));
 
+// ===== Nieuwe code hier toevoegen =====
+const multer = require('multer');
+const upload = multer({ dest: path.join(__dirname, 'uploads') });
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const accountsFile = path.join(__dirname, 'accounts.json');
 const mainChatFile = path.join(__dirname, 'mainChat.json');
 const privateChatFile = path.join(__dirname, 'privateChat.json');
 
-// Ensure JSON files exist
+// Zorg dat JSON-bestanden bestaan
 if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
 if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
 if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
@@ -24,7 +29,7 @@ function duoKey(a, b){ return [a,b].sort().join('_'); }
 
 const online = new Map(); // username -> socket.id
 
-// ----- Auth Endpoints -----
+// ----- Auth -----
 app.post('/register', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
@@ -47,7 +52,7 @@ app.post('/login', async (req, res) => {
   res.send({ message: 'Inloggen gelukt!' });
 });
 
-// ----- Friend system -----
+// ----- Friends -----
 app.get('/getFriends/:username', (req, res) => {
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === req.params.username);
@@ -102,10 +107,21 @@ app.post('/respondFriendRequest', (req, res) => {
   }
   saveJSON(accountsFile, accounts);
 
-  // Notify both users
   [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
-
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
+});
+
+// ===== Nieuwe code hier toevoegen =====
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).send({ error: 'Geen bestand ontvangen' });
+
+  const newFileName = req.file.filename + "_" + req.file.originalname;
+  const newPath = path.join(__dirname, 'uploads', newFileName);
+
+  fs.renameSync(req.file.path, newPath);
+
+  const fileUrl = `/uploads/${newFileName}`;
+  res.send({ url: fileUrl, name: req.file.originalname, type: req.file.mimetype });
 });
 
 // ----- Socket.IO -----

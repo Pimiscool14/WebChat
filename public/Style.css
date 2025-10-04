@@ -42,22 +42,24 @@ h1 { margin-bottom: 12px; }
 
 /* chat container */
 #chat-container {
-  display: flex;           /* dit zorgt ervoor dat kinderen naast elkaar komen */
-  flex-direction: row;     /* expliciet naast elkaar */
-  gap: 10px;               /* ruimte tussen chat en sidebar */
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
   width: 90%;
   max-width: 1200px;
   margin: 0 auto;
-  align-items: flex-start; /* zodat sidebar bovenaan begint */
+  align-items: stretch;   /* hoogte gelijk houden */
 }
 
 #chat-section {
-  flex: 2;                 /* 2/3 van de breedte */
-  min-width: 300px;        /* voorkom te smal */
+  flex: 2;
+  min-width: 300px;
   border: 1px solid #333;
   padding: 12px;
   background: #1e1e1e;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column; /* zodat berichten + formulier stapelen */
 }
 body.light #chat-section { background:#fff; border-color:#ccc; color:#222; }
 
@@ -110,7 +112,7 @@ audio { margin-top:6px; display:block; }
 
 /* friends sidebar */
 #friends-section {
-  flex: 1;                 /* 1/3 van de breedte */
+  flex: 1;
   min-width: 200px;
   border: 1px solid #333;
   padding: 12px;
@@ -119,7 +121,6 @@ audio { margin-top:6px; display:block; }
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: 70vh;
   overflow-y: auto;
 }
 
