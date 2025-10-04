@@ -329,15 +329,37 @@ fileSendBtn.addEventListener('click', async () => {
       img.style.maxWidth = '90%';
       img.style.maxHeight = '90%';
       fullscreenViewer.appendChild(img);
-    } else if (type === 'video') {
-      const vid = document.createElement('video');
-      vid.src = e.target.src;
-      vid.controls = true;
-      vid.autoplay = true;
-      vid.style.maxWidth = '90%';
-      vid.style.maxHeight = '90%';
-      fullscreenViewer.appendChild(vid);
-    }
+    else if (type === 'video') {
+  const wrapper = document.createElement('div');
+  wrapper.style.display = 'flex';
+  wrapper.style.flexDirection = 'column';
+  wrapper.style.alignItems = 'center';
+  wrapper.style.gap = '8px';
+
+  const nameTag = document.createElement('strong');
+  nameTag.textContent = e.target.getAttribute('data-user') || "Onbekend";
+
+  const wrapper = document.createElement('div');
+wrapper.style.display = 'flex';
+wrapper.style.flexDirection = 'column';
+wrapper.style.alignItems = 'center';
+wrapper.style.gap = '8px';
+
+const nameTag = document.createElement('strong');
+nameTag.textContent = e.target.getAttribute('data-user') || "Onbekend";
+
+const vid = document.createElement('video');
+vid.src = e.target.src;
+vid.controls = true;
+vid.autoplay = true;
+vid.style.maxWidth = '90%';
+vid.style.maxHeight = '90%';
+
+wrapper.appendChild(nameTag);
+wrapper.appendChild(vid);
+fullscreenViewer.appendChild(wrapper);
+
+}
 
     fullscreenViewer.style.display = 'flex';
   }

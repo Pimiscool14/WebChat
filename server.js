@@ -9,10 +9,12 @@ const path = require('path');
 app.use(express.static('public'));
 app.use(express.json({ limit: '20mb' }));
 
-// ===== Nieuwe code hier toevoegen =====
 const multer = require('multer');
-const upload = multer({ dest: path.join(__dirname, 'uploads') });
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: 100 * 1024 * 1024 } // max 100MB
+});
 
 const accountsFile = path.join(__dirname, 'accounts.json');
 const mainChatFile = path.join(__dirname, 'mainChat.json');
@@ -113,7 +115,9 @@ app.post('/respondFriendRequest', (req, res) => {
 
 // ===== Nieuwe code hier toevoegen =====
 app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send({ error: 'Geen bestand ontvangen' });
+  if (!req.file) return res.status(400).send('Geen bestand ontvangen');
+  res.json({ message: 'Bestand geüpload', file: req.file });
+});
 
   const newFileName = req.file.filename + "_" + req.file.originalname;
   const newPath = path.join(__dirname, 'uploads', newFileName);
