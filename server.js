@@ -152,13 +152,37 @@ app.post('/upload', (req, res, next) => {
   });
 });
 
-  const newFileName = req.file.filename + "_" + req.file.originalname;
-  const newPath = path.join(__dirname, 'uploads', newFileName);
+  app.post('/upload', (req, res, next) => {
+  upload.single('file')(req, res, err => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).send({ error: 'Bestand is te groot (max 100MB toegestaan)' });
+      }
+      return res.status(400).send({ error: 'Upload mislukt: ' + err.message });
+    }
 
-  fs.renameSync(req.file.path, newPath);
+    if (!req.file) {
+      return res.status(400).send({ error: 'Geen bestand ontvangen' });
+    }
 
-  const fileUrl = `/uploads/${newFileName}`;
-  res.send({ url: fileUrl, name: req.file.originalname, type: req.file.mimetype });
+    try {
+      const newFileName = req.file.filename + "_" + req.file.originalname;
+      const newPath = path.join(__dirname, 'uploads', newFileName);
+
+      fs.renameSync(req.file.path, newPath);
+
+      const fileUrl = `/uploads/${newFileName}`;
+      res.send({
+        message: 'Bestand succesvol geüpload',
+        url: fileUrl,
+        name: req.file.originalname,
+        type: req.file.mimetype
+      });
+    } catch (moveErr) {
+      console.error('Fout bij verplaatsen:', moveErr);
+      res.status(500).send({ error: 'Fout bij opslaan van bestand' });
+    }
+  });
 });
 
 // ----- Socket.IO -----
