@@ -113,7 +113,7 @@ app.post('/respondFriendRequest', (req, res) => {
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
-// ===== Nieuwe code hier toevoegen =====
+// ===== Upload route =====
 app.post('/upload', (req, res, next) => {
   upload.single('file')(req, res, err => {
     if (err) {
