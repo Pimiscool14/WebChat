@@ -114,9 +114,42 @@ app.post('/respondFriendRequest', (req, res) => {
 });
 
 // ===== Nieuwe code hier toevoegen =====
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send('Geen bestand ontvangen');
-  res.json({ message: 'Bestand geüpload', file: req.file });
+app.post('/upload', (req, res, next) => {
+  upload.single('file')(req, res, err => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).send({ error: 'Bestand is te groot (max 100MB toegestaan)' });
+      }
+      return res.status(400).send({ error: 'Upload mislukt: ' + err.message });
+    }
+
+    if (!req.file) {
+      return res.status(400).send({ error: 'Geen bestand ontvangen' });
+    }
+
+    try {
+      // Maak nieuwe bestandsnaam en pad
+      const newFileName = req.file.filename + "_" + req.file.originalname;
+      const newPath = path.join(__dirname, 'uploads', newFileName);
+
+      // Verplaats bestand van temp-map naar uploads/
+      fs.renameSync(req.file.path, newPath);
+
+      // Maak URL
+      const fileUrl = `/uploads/${newFileName}`;
+
+      // Stuur info terug naar de client
+      res.send({
+        message: 'Bestand succesvol geüpload',
+        url: fileUrl,
+        name: req.file.originalname,
+        type: req.file.mimetype
+      });
+    } catch (moveErr) {
+      console.error('Fout bij verplaatsen:', moveErr);
+      res.status(500).send({ error: 'Fout bij opslaan van bestand' });
+    }
+  });
 });
 
   const newFileName = req.file.filename + "_" + req.file.originalname;
