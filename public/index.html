@@ -2,10 +2,9 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <link rel="shortcut icon" type="x-icon" href="icon1.png">
   <title>WebChat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="Style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>Welkom bij WebChat</h1>
@@ -23,7 +22,7 @@
     <button id="register-btn">Registreer</button>
   </div>
 
-  <div id="chat-container" class="flex-container" style="display:none;">
+  <div id="chat-container" style="display:none;">
     <div id="chat-section">
       <div id="thread-header" style="display:none;">
         <button id="back-to-main">← Terug naar algemene chat</button>
@@ -38,28 +37,26 @@
       </form>
 
       <div class="extra-tools">
-  <div class="file-row">
-    <label for="file-input">📁 Bestand:</label>
-    <input type="file" id="file-input">
-    <button id="file-send-btn" style="display:none;">Versturen</button>
-  </div>
-</div>
+        <div class="photo-row">
+          <label for="photo-input">📷 Foto:</label>
+          <input type="file" id="photo-input" accept="image/*">
+          <button id="photo-send-btn" style="display:none;">Versturen</button>
+        </div>
         <div class="record-row">
           <button id="record-btn">🎤 Opnemen</button>
         </div>
       </div>
+    </div>
 
-    <aside id="friends-section">
+    <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
       <div id="requests-list"></div>
 
-      <h3>Verzoek sturen</h3>
+      <h3>Chats</h3>
       <div class="friend-add">
         <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
         <button id="add-friend-btn">Verstuur verzoek</button>
       </div>
-
-      <h3>Chats</h3>
 
       <ul id="friends-list"></ul>
     </aside>

@@ -42,24 +42,18 @@ h1 { margin-bottom: 12px; }
 
 /* chat container */
 #chat-container {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  width: 90%;
-  max-width: 1200px;
+  display:flex;
+  justify-content:space-between;
+  width:90%;
+  max-width:1100px;
   margin: 0 auto;
-  align-items: stretch;   /* hoogte gelijk houden */
 }
-
 #chat-section {
-  flex: 2;
-  min-width: 300px;
+  width: 65%;
   border: 1px solid #333;
   padding: 12px;
   background: #1e1e1e;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column; /* zodat berichten + formulier stapelen */
 }
 body.light #chat-section { background:#fff; border-color:#ccc; color:#222; }
 
@@ -112,26 +106,13 @@ audio { margin-top:6px; display:block; }
 
 /* friends sidebar */
 #friends-section {
-  flex: 1;
-  min-width: 200px;
+  width: 30%;
   border: 1px solid #333;
   padding: 12px;
   background: #1e1e1e;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  height: 70vh;
   overflow-y: auto;
-}
-
-@media (max-width: 900px) {
-  #chat-container {
-    flex-direction: column;
-  }
-  #chat-section, #friends-section {
-    width: 100%;
-    margin-bottom: 12px;
-  }
 }
 body.light #friends-section { background:#fff; border-color:#ccc; color:#222; }
 .friend-add { display:flex; gap:6px; margin-bottom:8px; }
@@ -180,35 +161,12 @@ body.light #friend-request-popup .popup { background:#eee; color:#222; }
 /* fullscreen */
 #fullscreen-viewer {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex; justify-content: center; align-items: center;
+  top:0; left:0; right:0; bottom:0;
+  display:flex; justify-content:center; align-items:center;
   background: rgba(0,0,0,0.9);
   z-index: 2000;
-  cursor: pointer;
-  flex-direction: column;
-  padding: 10px;
-  overflow: auto;
 }
-
-#fullscreen-viewer img,
-#fullscreen-viewer video {
-  max-width: 90%;
-  max-height: 90%;
-  border-radius: 6px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.7);
-}
-
-#fullscreen-viewer video {
-  background: black;
-}
-
-@media (max-width: 600px) {
-  #fullscreen-viewer img,
-  #fullscreen-viewer video {
-    max-width: 100%;
-    max-height: 80%;
-  }
-}
+#fullscreen-viewer img { max-width: 90%; max-height: 90%; cursor:pointer; border-radius:6px; }
 
 /* melding notificatie in het midden */
 #notification {
