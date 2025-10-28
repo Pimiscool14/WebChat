@@ -5,6 +5,15 @@ const io = require('socket.io')(http);
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
+});
+const upload = multer({ storage });
 
 app.use(express.static('public'));
 app.use(express.json({ limit: '20mb' }));
@@ -103,6 +112,17 @@ app.post('/respondFriendRequest', (req, res) => {
   [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
+ // ----- upload -----
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const mime = req.file.mimetype;
+  let type = 'file';
+  if(mime.startsWith('image/')) type = 'image';
+  else if(mime.startsWith('video/')) type = 'video';
+  else if(mime.startsWith('audio/')) type = 'audio';
+  res.send({ url: fileUrl, type, name: req.file.originalname });
+});
 
 // ----- Socket.IO -----
 io.on('connection', socket => {
@@ -179,5 +199,6 @@ io.on('connection', socket => {
   });
 });
 
+app.use('/uploads', express.static(uploadDir));
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server draait op port ${PORT}`));

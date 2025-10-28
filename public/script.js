@@ -89,9 +89,17 @@ document.addEventListener('DOMContentLoaded', () => {
     userSpan.style.marginRight = '6px';
 
     const msgSpan = document.createElement('span');
-    if (data.type === 'image') msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
-    else if (data.type === 'audio') msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
-    else msgSpan.innerHTML = formatMessage(data.msg);
+    if (data.type === 'image') {
+  msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
+} else if (data.type === 'video') {
+  msgSpan.innerHTML = `<video class="clickable-video" data-src="${data.msg}" src="${data.msg}" controls width="250"></video>`;
+} else if (data.type === 'audio') {
+  msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
+} else if (data.type === 'file') {
+  msgSpan.innerHTML = `<a href="${data.msg}" download="${data.name}">📎 ${data.name}</a>`;
+} else {
+  msgSpan.innerHTML = formatMessage(data.msg);
+}
 
     li.appendChild(userSpan);
     li.appendChild(msgSpan);
@@ -240,25 +248,63 @@ document.addEventListener('DOMContentLoaded', () => {
     messageInput.value = '';
   });
 
-  // photo
-  photoInput.addEventListener('change', () => { photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; });
-  photoSendBtn.addEventListener('click', () => {
-    const file = photoInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type: 'image', privateTo: currentPrivate || undefined });
-    reader.readAsDataURL(file);
-    photoInput.value = ''; photoSendBtn.style.display = 'none';
-  });
+  // file upload (foto, video, audio, of andere bestanden)
+photoInput.addEventListener('change', () => { 
+  photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; 
+});
 
-  // fullscreen viewer
-  document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('clickable-photo')) {
-      fullscreenImg.src = e.target.src;
-      fullscreenViewer.style.display = 'flex';
-    }
-  });
-  fullscreenViewer.addEventListener('click', () => { fullscreenViewer.style.display = 'none'; fullscreenImg.src = ''; });
+photoSendBtn.addEventListener('click', async () => {
+  const file = photoInput.files[0];
+  if (!file) return showNotification('Geen bestand gekozen', 'error');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // verstuur bericht naar socket
+    socket.emit('chat message', {
+      user: username,
+      msg: data.url,
+      type: data.type,
+      name: data.name,
+      privateTo: currentPrivate || undefined
+    });
+
+    showNotification('📤 Bestand verzonden!');
+  } catch (err) {
+    showNotification('Upload mislukt: ' + err.message, 'error');
+  } finally {
+    photoInput.value = ''; 
+    photoSendBtn.style.display = 'none';
+  }
+});
+
+  // fullscreen viewer (foto + video)
+document.addEventListener('click', (e) => {
+  // klik op afbeelding
+  if (e.target.classList.contains('clickable-photo')) {
+    fullscreenViewer.innerHTML = `<img src="${e.target.src}" class="max-w-full max-h-full rounded-xl" />`;
+    fullscreenViewer.style.display = 'flex';
+  }
+  // klik op video
+  else if (e.target.classList.contains('clickable-video')) {
+    fullscreenViewer.innerHTML = `
+      <video controls autoplay class="max-w-full max-h-full rounded-xl">
+        <source src="${e.target.getAttribute('data-src')}" type="video/mp4">
+        Je browser ondersteunt geen video.
+      </video>`;
+    fullscreenViewer.style.display = 'flex';
+  }
+});
+
+fullscreenViewer.addEventListener('click', () => {
+  fullscreenViewer.style.display = 'none';
+  fullscreenViewer.innerHTML = '';
+});
 
   // audio recorder
   recordBtn.addEventListener('click', async () => {
