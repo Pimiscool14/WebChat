@@ -202,19 +202,20 @@ io.on('connection', socket => {
     if(otherSock) io.to(otherSock).emit('private message deleted', { id, to });
   });
 
-  socket.on('disconnect', () => {
-  if(socket.username) {
-    online.delete(socket.username);
+    socket.on('disconnect', () => {
+    if(socket.username) {
+      online.delete(socket.username);
 
-    const accounts = loadJSON(accountsFile);
-    const user = accounts.find(u => u.username === socket.username);
-    if (user) {
-      user.isLoggedIn = false;
-      saveJSON(accountsFile, accounts);
+      const accounts = loadJSON(accountsFile);
+      const user = accounts.find(u => u.username === socket.username);
+      if (user) {
+        user.isLoggedIn = false;
+        saveJSON(accountsFile, accounts);
+      }
     }
-  }
-  console.log('Socket disconnected:', socket.id);
-});
+    console.log('Socket disconnected:', socket.id);
+  });
+}); // <-- dit sluit io.on('connection', ...) af
 
 app.use('/uploads', express.static(uploadDir));
 const PORT = process.env.PORT || 3000;
