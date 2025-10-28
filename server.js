@@ -40,7 +40,7 @@ app.post('/register', async (req, res) => {
   const accounts = loadJSON(accountsFile);
   if (accounts.find(a => a.username === username)) return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
   const hashed = await bcrypt.hash(password, 10);
-  accounts.push({ username, password: hashed, friends: [], friendRequests: [] });
+  accounts.push({ username, password: hashed, friends: [], friendRequests: [], isLoggedIn: false });
   saveJSON(accountsFile, accounts);
   res.send({ message: 'Account aangemaakt!' });
 });
@@ -48,11 +48,20 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === username);
   if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  if (user.isLoggedIn) return res.status(400).send({ error: 'Deze gebruiker is al ingelogd!' });
+
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
+
+  // Zet gebruiker op ingelogd
+  user.isLoggedIn = true;
+  saveJSON(accountsFile, accounts);
+
   res.send({ message: 'Inloggen gelukt!' });
 });
 
@@ -194,9 +203,17 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
-    if(socket.username) online.delete(socket.username);
-    console.log('Socket disconnected:', socket.id);
-  });
+  if(socket.username) {
+    online.delete(socket.username);
+
+    const accounts = loadJSON(accountsFile);
+    const user = accounts.find(u => u.username === socket.username);
+    if (user) {
+      user.isLoggedIn = false;
+      saveJSON(accountsFile, accounts);
+    }
+  }
+  console.log('Socket disconnected:', socket.id);
 });
 
 app.use('/uploads', express.static(uploadDir));

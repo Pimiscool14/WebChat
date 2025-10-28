@@ -170,17 +170,33 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { showNotification('Fout: ' + err.message, 'error'); }
   });
 
-  logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('username');
-    username = '';
-    loginContainer.style.display = 'block';
-    logoutBtn.style.display = 'none';
-    chatContainer.style.display = 'none';
-    friendsSection.style.display = 'none';
-    messagesList.innerHTML = '';
-    currentPrivate = null;
-    showNotification('Uitgelogd');
-  });
+  logoutBtn.addEventListener('click', async () => {
+  if (username) {
+    await fetch('/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
+  }
+  localStorage.removeItem('username');
+  username = '';
+  loginContainer.style.display = 'block';
+  logoutBtn.style.display = 'none';
+  chatContainer.style.display = 'none';
+  friendsSection.style.display = 'none';
+  messagesList.innerHTML = '';
+  currentPrivate = null;
+  showNotification('Uitgelogd');
+});
+
+  // geen logout-route
+  app.post('/logout', async (req, res) => {
+  const username = req.body.username;
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === username);
+  if (user) {
+    user.isLoggedIn = false;
+    saveJSON(accountsFile, accounts);
+  }
+  online.delete(username);
+  res.send({ message: 'Uitgelogd!' });
+});
 
   // auto login if saved
   if (username) tryAutoLogin();
