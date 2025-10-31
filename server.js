@@ -153,30 +153,40 @@ io.on('connection', socket => {
   });
 
   socket.on('chat message', data => {
-    const msg = { id: Date.now(), ...data };
-    if(data.privateTo) {
-      const accounts = loadJSON(accountsFile);
-      const me = accounts.find(u => u.username === socket.username);
-      const other = accounts.find(u => u.username === data.privateTo);
-      if(!me || !other) return;
-      if(!((me.friends||[]).includes(other.username) && (other.friends||[]).includes(me.username))) return;
+  if (!socket.username) return;
 
-      const key = duoKey(socket.username, data.privateTo);
-      const allPrivate = loadJSON(privateChatFile);
-      if(!allPrivate[key]) allPrivate[key] = [];
-      allPrivate[key].push(msg);
-      saveJSON(privateChatFile, allPrivate);
+  const msg = { id: Date.now(), user: socket.username, text: data.text, time: Date.now() };
 
-      io.to(socket.id).emit('private message', msg);
-      const otherSock = online.get(data.privateTo);
-      if(otherSock) io.to(otherSock).emit('private message', msg);
-    } else {
-      const allMain = loadJSON(mainChatFile);
-      allMain.push(msg);
-      saveJSON(mainChatFile, allMain);
-      io.emit('chat message', msg);
-    }
-  });
+  // PRIVÉBERICHT
+  if (data.privateTo && data.privateTo.trim() !== "") {
+    const recipient = data.privateTo;
+    const accounts = loadJSON(accountsFile);
+    const me = accounts.find(u => u.username === socket.username);
+    const other = accounts.find(u => u.username === recipient);
+    if (!me || !other) return;
+    if (!((me.friends || []).includes(other.username) && (other.friends || []).includes(me.username))) return;
+
+    const key = duoKey(socket.username, recipient);
+    const allPrivate = loadJSON(privateChatFile);
+    if (!allPrivate[key]) allPrivate[key] = [];
+    allPrivate[key].push(msg);
+    saveJSON(privateChatFile, allPrivate);
+
+    // Verstuur alleen naar betrokkenen
+    io.to(socket.id).emit('private message', msg);
+    const otherSock = online.get(recipient);
+    if (otherSock) io.to(otherSock).emit('private message', msg);
+    return;
+  }
+
+  // ALGEMENE CHAT
+  const allMain = loadJSON(mainChatFile);
+  allMain.push(msg);
+  saveJSON(mainChatFile, allMain);
+
+  // Verstuur naar iedereen in algemene chat
+  io.emit('chat message', msg);
+});
 
   socket.on('delete message', id => {
     let allMain = loadJSON(mainChatFile);
