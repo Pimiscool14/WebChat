@@ -32,6 +32,7 @@ function saveJSON(file, data) { fs.writeFileSync(file, JSON.stringify(data, null
 function duoKey(a, b){ return [a,b].sort().join('_'); }
 
 const online = new Map(); // username -> socket.id
+const loggedInUsers = new Set(); // houdt bij wie al is ingelogd
 
 // ----- Auth -----
 app.post('/register', async (req, res) => {
@@ -53,6 +54,14 @@ app.post('/login', async (req, res) => {
   if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
+    // Check of gebruiker al is ingelogd
+  if (loggedInUsers.has(username)) {
+    return res.status(400).send({ error: 'Gebruiker is al ingelogd!' });
+  }
+
+  // Markeer gebruiker als ingelogd
+  loggedInUsers.add(username);
+
   res.send({ message: 'Inloggen gelukt!' });
 });
 
@@ -194,8 +203,11 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
-    if(socket.username) online.delete(socket.username);
-    console.log('Socket disconnected:', socket.id);
+  if(socket.username) {
+    online.delete(socket.username);
+    loggedInUsers.delete(socket.username);
+  }
+  console.log('Socket disconnected:', socket.id);
   });
 });
 
