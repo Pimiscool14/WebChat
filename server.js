@@ -49,15 +49,16 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+
+  // Check of de gebruiker al is ingelogd
+  if (loggedInUsers.has(username)) return res.status(400).send({ error: 'Gebruiker is al ingelogd!' });
+
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === username);
   if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
-    // Check of gebruiker al is ingelogd
-  if (loggedInUsers.has(username)) {
-    return res.status(400).send({ error: 'Gebruiker is al ingelogd!' });
-  }
 
   // Markeer gebruiker als ingelogd
   loggedInUsers.add(username);
@@ -153,40 +154,30 @@ io.on('connection', socket => {
   });
 
   socket.on('chat message', data => {
-  if (!socket.username) return;
+    const msg = { id: Date.now(), ...data };
+    if(data.privateTo) {
+      const accounts = loadJSON(accountsFile);
+      const me = accounts.find(u => u.username === socket.username);
+      const other = accounts.find(u => u.username === data.privateTo);
+      if(!me || !other) return;
+      if(!((me.friends||[]).includes(other.username) && (other.friends||[]).includes(me.username))) return;
 
-  const msg = { id: Date.now(), user: socket.username, text: data.text, time: Date.now() };
+      const key = duoKey(socket.username, data.privateTo);
+      const allPrivate = loadJSON(privateChatFile);
+      if(!allPrivate[key]) allPrivate[key] = [];
+      allPrivate[key].push(msg);
+      saveJSON(privateChatFile, allPrivate);
 
-  // PRIVÉBERICHT
-  if (data.privateTo && data.privateTo.trim() !== "") {
-    const recipient = data.privateTo;
-    const accounts = loadJSON(accountsFile);
-    const me = accounts.find(u => u.username === socket.username);
-    const other = accounts.find(u => u.username === recipient);
-    if (!me || !other) return;
-    if (!((me.friends || []).includes(other.username) && (other.friends || []).includes(me.username))) return;
-
-    const key = duoKey(socket.username, recipient);
-    const allPrivate = loadJSON(privateChatFile);
-    if (!allPrivate[key]) allPrivate[key] = [];
-    allPrivate[key].push(msg);
-    saveJSON(privateChatFile, allPrivate);
-
-    // Verstuur alleen naar betrokkenen
-    io.to(socket.id).emit('private message', msg);
-    const otherSock = online.get(recipient);
-    if (otherSock) io.to(otherSock).emit('private message', msg);
-    return;
-  }
-
-  // ALGEMENE CHAT
-  const allMain = loadJSON(mainChatFile);
-  allMain.push(msg);
-  saveJSON(mainChatFile, allMain);
-
-  // Verstuur naar iedereen in algemene chat
-  io.emit('chat message', msg);
-});
+      io.to(socket.id).emit('private message', msg);
+      const otherSock = online.get(data.privateTo);
+      if(otherSock) io.to(otherSock).emit('private message', msg);
+    } else {
+      const allMain = loadJSON(mainChatFile);
+      allMain.push(msg);
+      saveJSON(mainChatFile, allMain);
+      io.emit('chat message', msg);
+    }
+  });
 
   socket.on('delete message', id => {
     let allMain = loadJSON(mainChatFile);
