@@ -55,6 +55,25 @@
       </div>
     </div>
 
+    <!-- Admin Panel -->
+<div id="admin-panel" style="display:none;">
+  <h3>Admin Panel</h3>
+  <div id="ban-section">
+    <label>Bannen:</label><br>
+    <input type="number" id="ban-days" placeholder="Dagen" min="0" style="width:60px;">
+    <input type="number" id="ban-hours" placeholder="Uren" min="0" max="23" style="width:60px;">
+    <input type="number" id="ban-minutes" placeholder="Minuten" min="0" max="59" style="width:60px;">
+    <input type="number" id="ban-seconds" placeholder="Seconden" min="0" max="59" style="width:60px;"><br><br>
+
+    <input type="text" id="ban-username" placeholder="Gebruikersnaam bannen"><br><br>
+    <button id="ban-timed-btn">Bannen voor tijd</button>
+    <button id="ban-perm-btn">Permanent bannen</button><br><br>
+
+    <input type="text" id="unban-username" placeholder="Gebruikersnaam vrijgeven"><br>
+    <button id="unban-btn">Vrijgeven</button>
+  </div>
+</div>
+
     <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
       <div id="requests-list"></div>

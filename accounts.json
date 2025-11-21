@@ -1,24 +1,3 @@
 [
-  {
-    "username": "Pimiscool",
-    "password": "$2b$10$aVJG2Wu4toCzJ2uG5nV0veFKgGl0z5qPcNiexOm6MNxk63Fa/6etq",
-    "friends": [],
-    "friendRequests": [],
-    "admin": true,
-    "suspended": {
-      "status": false,
-      "until": null
-    }
-  },
-  {
-    "username": "Halloeikbeniemand",
-    "password": "$$2b$10$aVJG2Wu4toCzJ2uG5nV0veFKgGl0z5qPcNiexOm6MNxk63Fa/6etq",
-    "friends": [],
-    "friendRequests": [],
-    "admin": false,
-    "suspended": {
-      "status": false,
-      "until": null
-    }
-  }
+  { "username":"Pim", "password":"$2b$10$xTb43ytCyLfGamHkkHJl0eLeBJ7dhmoRW5sliH1bO9IdN2FTTvxXi", "friends":[], "friendRequests":[], "admin":true }
 ]

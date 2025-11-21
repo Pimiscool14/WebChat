@@ -122,6 +122,56 @@ app.post('/respondFriendRequest', (req, res) => {
   [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
+
+  // ----- Admin check -----
+app.get('/isAdmin/:username', (req,res)=>{
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === req.params.username);
+  res.send({ admin: user && user.admin ? true : false });
+});
+
+// ----- Ban / Unban -----
+let bans = {}; // username -> { until: timestamp } , permanent = until=-1
+
+app.post('/ban', (req,res)=>{
+  const { username: target, duration } = req.body || {};
+  if(!target || typeof duration === 'undefined') return res.status(400).send({error:'Onvolledige data'});
+  const accounts = loadJSON(accountsFile);
+  if(!accounts.find(u=>u.username===target)) return res.status(400).send({error:'Gebruiker niet gevonden'});
+
+  bans[target] = { until: duration===-1 ? -1 : Date.now() + duration*1000 };
+  res.send({ message: `Gebruiker ${target} is geband` });
+});
+
+app.post('/unban', (req,res)=>{
+  const { username: target } = req.body || {};
+  if(!target) return res.status(400).send({error:'Onvolledige data'});
+  if(bans[target]) delete bans[target];
+  res.send({ message: `Gebruiker ${target} is vrijgegeven` });
+});
+
+// ----- check ban bij login -----
+const oldLogin = app._router.stack.find(r=>r.route && r.route.path==='/login').route.stack[0].handle;
+app._router.stack.find(r=>r.route && r.route.path==='/login').route.stack[0].handle = async (req,res,next)=>{
+  const { username } = req.body;
+  if(username && bans[username]){
+    const b = bans[username];
+    if(b.until===-1 || b.until > Date.now()){
+      let msg = 'Je bent geband';
+      if(b.until!==-1){
+        let diff = Math.max(0, b.until-Date.now());
+        let days = Math.floor(diff/86400000);
+        let hours = Math.floor((diff%86400000)/3600000);
+        let minutes = Math.floor((diff%3600000)/60000);
+        let seconds = Math.floor((diff%60000)/1000);
+        msg += ` voor ${days} dagen, ${hours} uur, ${minutes} min, ${seconds} sec`;
+      } else { msg += ' permanent'; }
+      return res.status(403).send({ error: msg });
+    }
+  }
+  oldLogin(req,res,next);
+};
+
  // ----- upload -----
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });

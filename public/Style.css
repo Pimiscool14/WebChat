@@ -192,3 +192,27 @@ body.light #notification { color:#222; }
   #chat-container{flex-direction:column;}
   #chat-section,#friends-section{width:100%; margin-bottom:12px;}
 }
+
+#admin-panel {
+  position: absolute;
+  top: 100px;
+  left: 20px;
+  width: 250px;
+  padding: 12px;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #eee;
+  z-index: 1000;
+}
+#admin-panel input, #admin-panel button {
+  margin-bottom: 6px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  width: calc(100% - 12px);
+}
+#admin-panel button {
+  background:#6200ee; color:white; cursor:pointer; margin-right:4px;
+}
+#admin-panel button:hover { background:#3700b3; }

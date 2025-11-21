@@ -24,6 +24,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatForm = document.getElementById('chat-form');
   const messageInput = document.getElementById('message');
   const messagesList = document.getElementById('messages');
+  
+  // ---- Admin Panel ----
+const adminPanel = document.getElementById('admin-panel');
+const banDays = document.getElementById('ban-days');
+const banHours = document.getElementById('ban-hours');
+const banMinutes = document.getElementById('ban-minutes');
+const banSeconds = document.getElementById('ban-seconds');
+const banUsername = document.getElementById('ban-username');
+const banTimedBtn = document.getElementById('ban-timed-btn');
+const banPermBtn = document.getElementById('ban-perm-btn');
+const unbanUsername = document.getElementById('unban-username');
+const unbanBtn = document.getElementById('unban-btn');
+
+// Check of gebruiker admin is
+fetch('/isAdmin/' + username).then(r => r.json()).then(data => {
+  if(data.admin) adminPanel.style.display = 'block';
+});
+
+banTimedBtn.addEventListener('click', () => {
+  const user = banUsername.value.trim();
+  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
+  const days = parseInt(banDays.value) || 0;
+  const hours = parseInt(banHours.value) || 0;
+  const minutes = parseInt(banMinutes.value) || 0;
+  const seconds = parseInt(banSeconds.value) || 0;
+  const totalSeconds = days*86400 + hours*3600 + minutes*60 + seconds;
+  if(totalSeconds <= 0) return showNotification('Vul een geldige tijd in', 'error');
+
+  fetch('/ban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, duration: totalSeconds }) })
+    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
+
+  // reset inputs
+  banUsername.value=''; banDays.value=''; banHours.value=''; banMinutes.value=''; banSeconds.value='';
+});
+
+banPermBtn.addEventListener('click', () => {
+  const user = banUsername.value.trim();
+  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
+
+  fetch('/ban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, duration: -1 }) })
+    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
+
+  banUsername.value='';
+});
+
+unbanBtn.addEventListener('click', () => {
+  const user = unbanUsername.value.trim();
+  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
+
+  fetch('/unban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user }) })
+    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
+
+  unbanUsername.value='';
+});
 
   const photoInput = document.getElementById('photo-input');
   const photoSendBtn = document.getElementById('photo-send-btn');
