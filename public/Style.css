@@ -198,7 +198,7 @@ body.light #notification { color:#222; }
   padding: 10px;
   border: 1px solid #ccc;
   margin-bottom: 20px;
-  background: #f9f9f9;
+  background: #fff;
   border-radius: 8px;
 }
 #admin-panel input, #admin-panel button {

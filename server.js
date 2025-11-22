@@ -155,21 +155,38 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.send({ url: fileUrl, type, name: req.file.originalname });
 });
 
-// ----- Ban / Unban -----
-app.post('/ban', (req,res)=>{
+// ----- Ban / Unban Verbeterd -----
+app.post('/ban', (req, res) => {
   const { username: target, duration } = req.body || {};
-  if(!target || typeof duration === 'undefined') return res.status(400).send({error:'Onvolledige data'});
-  const accounts = loadJSON(accountsFile);
-  if(!accounts.find(u=>u.username===target)) return res.status(400).send({error:'Gebruiker niet gevonden'});
+  if(!target || typeof duration === 'undefined') return res.status(400).send({ error: 'Onvolledige data' });
 
-  bans[target] = { until: duration===-1 ? -1 : Date.now() + duration*1000 };
+  const accounts = loadJSON(accountsFile);
+  if(!accounts.find(u => u.username === target)) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  bans[target] = { until: duration === -1 ? -1 : Date.now() + duration*1000 };
+
+  // Als de gebruiker online is, forceer uitloggen en stuur melding
+  const sockId = online.get(target);
+  if(sockId){
+    io.to(sockId).emit('banned', { until: bans[target].until });
+    io.sockets.sockets.get(sockId)?.disconnect();
+  }
+
   res.send({ message: `Gebruiker ${target} is geband` });
 });
 
-app.post('/unban', (req,res)=>{
+app.post('/unban', (req, res) => {
   const { username: target } = req.body || {};
-  if(!target) return res.status(400).send({error:'Onvolledige data'});
+  if(!target) return res.status(400).send({ error: 'Onvolledige data' });
+
   if(bans[target]) delete bans[target];
+
+  // Als de gebruiker online is, stuur melding dat hij vrij is
+  const sockId = online.get(target);
+  if(sockId){
+    io.to(sockId).emit('unbanned', { message: 'Je bent vrijgegeven' });
+  }
+
   res.send({ message: `Gebruiker ${target} is vrijgegeven` });
 });
 
