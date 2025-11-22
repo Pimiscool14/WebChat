@@ -1,3 +1,9 @@
 [
-  { "username":"Pim", "password":"$2b$10$xTb43ytCyLfGamHkkHJl0eLeBJ7dhmoRW5sliH1bO9IdN2FTTvxXi", "friends":[], "friendRequests":[], "admin":true }
+  { 
+    "username": "Pim", 
+    "password": "$2b$10$xTb43ytCyLfGamHkkHJl0eLeBJ7dhmoRW5sliH1bO9IdN2FTTvxXi", 
+    "friends": [], 
+    "friendRequests": [], 
+    "isAdmin": true 
+  }
 ]

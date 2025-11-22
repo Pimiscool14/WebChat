@@ -6,6 +6,10 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const accounts = loadJSON(accountsFile);
+const user = accounts.find(u => u.username === uname);
+const isAdmin = user?.isAdmin || false;
+socket.emit('set admin', { isAdmin });
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
@@ -49,6 +53,14 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+
+  // Check of de gebruiker geband is
+  const banInfo = bans[username];
+  if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
+    return res.status(403).send({ error: 'Je bent geband!' });
+  } else if (banInfo && banInfo.until <= Date.now()) {
+    delete bans[username]; // ban verlopen
+  }
 
   // Check of de gebruiker al is ingelogd
   if (loggedInUsers.has(username)) return res.status(400).send({ error: 'Gebruiker is al ingelogd!' });
@@ -123,11 +135,16 @@ app.post('/respondFriendRequest', (req, res) => {
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
-  // ----- Admin check -----
-app.get('/isAdmin/:username', (req,res)=>{
-  const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === req.params.username);
-  res.send({ admin: user && user.admin ? true : false });
+ // ----- upload -----
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const mime = req.file.mimetype;
+  let type = 'file';
+  if(mime.startsWith('image/')) type = 'image';
+  else if(mime.startsWith('video/')) type = 'video';
+  else if(mime.startsWith('audio/')) type = 'audio';
+  res.send({ url: fileUrl, type, name: req.file.originalname });
 });
 
 // ----- Ban / Unban -----
@@ -150,58 +167,32 @@ app.post('/unban', (req,res)=>{
   res.send({ message: `Gebruiker ${target} is vrijgegeven` });
 });
 
-// ----- check ban bij login -----
-const oldLogin = app._router.stack.find(r=>r.route && r.route.path==='/login').route.stack[0].handle;
-app._router.stack.find(r=>r.route && r.route.path==='/login').route.stack[0].handle = async (req,res,next)=>{
-  const { username } = req.body;
-  if(username && bans[username]){
-    const b = bans[username];
-    if(b.until===-1 || b.until > Date.now()){
-      let msg = 'Je bent geband';
-      if(b.until!==-1){
-        let diff = Math.max(0, b.until-Date.now());
-        let days = Math.floor(diff/86400000);
-        let hours = Math.floor((diff%86400000)/3600000);
-        let minutes = Math.floor((diff%3600000)/60000);
-        let seconds = Math.floor((diff%60000)/1000);
-        msg += ` voor ${days} dagen, ${hours} uur, ${minutes} min, ${seconds} sec`;
-      } else { msg += ' permanent'; }
-      return res.status(403).send({ error: msg });
-    }
-  }
-  oldLogin(req,res,next);
-};
-
- // ----- upload -----
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
-  const fileUrl = `/uploads/${req.file.filename}`;
-  const mime = req.file.mimetype;
-  let type = 'file';
-  if(mime.startsWith('image/')) type = 'image';
-  else if(mime.startsWith('video/')) type = 'video';
-  else if(mime.startsWith('audio/')) type = 'audio';
-  res.send({ url: fileUrl, type, name: req.file.originalname });
-});
-
 // ----- Socket.IO -----
 io.on('connection', socket => {
   console.log('Socket connected:', socket.id);
 
   socket.on('set username', uname => {
-    if(!uname) return;
-    socket.username = uname;
-    online.set(uname, socket.id);
+  const banInfo = bans[uname];
+  if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
+    socket.emit('banned', { duration: banInfo.until });
+    return;
+  } else if (banInfo && banInfo.until <= Date.now()) {
+    delete bans[uname]; // ban verlopen
+  }
 
-    socket.emit('chat history', loadJSON(mainChatFile));
+  if(!uname) return;
+  socket.username = uname;
+  online.set(uname, socket.id);
 
-    const allPrivate = loadJSON(privateChatFile);
-    const userThreads = {};
-    Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
-    socket.emit('load private chats', userThreads);
+  socket.emit('chat history', loadJSON(mainChatFile));
 
-    socket.emit('friends updated');
-  });
+  const allPrivate = loadJSON(privateChatFile);
+  const userThreads = {};
+  Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
+  socket.emit('load private chats', userThreads);
+
+  socket.emit('friends updated');
+});
 
   socket.on('chat message', data => {
     const msg = { id: Date.now(), ...data };

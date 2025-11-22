@@ -1,6 +1,17 @@
 // public/script.js
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
+
+  // --- BAN EVENT toevoegen ---
+  socket.on('banned', ({ duration }) => {
+    alert(duration === -1 
+      ? 'Je bent permanent geband!' 
+      : `Je bent geband voor ${Math.round((duration - Date.now())/1000)} seconden`);
+    
+    localStorage.removeItem('username'); // force logout
+    location.reload(); // terug naar login
+  });
+
   let username = localStorage.getItem('username') || "";
   let mediaRecorder, audioChunks = [];
   let currentPrivate = null;
@@ -24,60 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatForm = document.getElementById('chat-form');
   const messageInput = document.getElementById('message');
   const messagesList = document.getElementById('messages');
-  
-  // ---- Admin Panel ----
-const adminPanel = document.getElementById('admin-panel');
-const banDays = document.getElementById('ban-days');
-const banHours = document.getElementById('ban-hours');
-const banMinutes = document.getElementById('ban-minutes');
-const banSeconds = document.getElementById('ban-seconds');
-const banUsername = document.getElementById('ban-username');
-const banTimedBtn = document.getElementById('ban-timed-btn');
-const banPermBtn = document.getElementById('ban-perm-btn');
-const unbanUsername = document.getElementById('unban-username');
-const unbanBtn = document.getElementById('unban-btn');
-
-// Check of gebruiker admin is
-fetch('/isAdmin/' + username).then(r => r.json()).then(data => {
-  if(data.admin) adminPanel.style.display = 'block';
-});
-
-banTimedBtn.addEventListener('click', () => {
-  const user = banUsername.value.trim();
-  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
-  const days = parseInt(banDays.value) || 0;
-  const hours = parseInt(banHours.value) || 0;
-  const minutes = parseInt(banMinutes.value) || 0;
-  const seconds = parseInt(banSeconds.value) || 0;
-  const totalSeconds = days*86400 + hours*3600 + minutes*60 + seconds;
-  if(totalSeconds <= 0) return showNotification('Vul een geldige tijd in', 'error');
-
-  fetch('/ban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, duration: totalSeconds }) })
-    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
-
-  // reset inputs
-  banUsername.value=''; banDays.value=''; banHours.value=''; banMinutes.value=''; banSeconds.value='';
-});
-
-banPermBtn.addEventListener('click', () => {
-  const user = banUsername.value.trim();
-  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
-
-  fetch('/ban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, duration: -1 }) })
-    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
-
-  banUsername.value='';
-});
-
-unbanBtn.addEventListener('click', () => {
-  const user = unbanUsername.value.trim();
-  if(!user) return showNotification('Vul gebruikersnaam in', 'error');
-
-  fetch('/unban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user }) })
-    .then(r => r.json()).then(d => showNotification(d.message || d.error, d.message ? 'info':'error'));
-
-  unbanUsername.value='';
-});
 
   const photoInput = document.getElementById('photo-input');
   const photoSendBtn = document.getElementById('photo-send-btn');
@@ -93,6 +50,28 @@ unbanBtn.addEventListener('click', () => {
   const fullscreenImg = document.getElementById('fullscreen-img');
 
   const notification = document.getElementById('notification');
+
+  // ------------------ Admin panel ------------------
+const adminPanel = document.getElementById('admin-panel'); // Voeg in index.html toe
+const banUserInput = document.getElementById('ban-user');
+const banDurationInput = document.getElementById('ban-duration');
+const banBtn = document.getElementById('ban-btn');
+
+socket.on('set admin', ({ isAdmin }) => {
+if (isAdmin) adminPanel.style.display = 'block';
+});
+
+banBtn.addEventListener('click', () => {
+const target = banUserInput.value.trim();
+const duration = Number(banDurationInput.value);
+
+if (!target) return showNotification('Vul een gebruiker in', 'error');
+if (isNaN(duration)) return showNotification('Vul een geldige duur in', 'error');
+
+socket.emit('ban user', { targetUser: target, duration });
+showNotification(`Gebruiker ${target} geband!`);
+
+});
 
   // helpers
   function duoKey(a,b){ return [a,b].sort().join('_'); }
