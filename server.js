@@ -6,22 +6,8 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const accounts = loadJSON(accountsFile);
-const user = accounts.find(u => u.username === uname);
-const isAdmin = user?.isAdmin || false;
-socket.emit('set admin', { isAdmin });
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
-});
-const upload = multer({ storage });
-
-app.use(express.static('public'));
-app.use(express.json({ limit: '20mb' }));
-
+// JSON-bestanden
 const accountsFile = path.join(__dirname, 'accounts.json');
 const mainChatFile = path.join(__dirname, 'mainChat.json');
 const privateChatFile = path.join(__dirname, 'privateChat.json');
@@ -31,12 +17,34 @@ if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify(
 if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
 if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
 
-function loadJSON(file) { return JSON.parse(fs.readFileSync(file)); }
-function saveJSON(file, data) { fs.writeFileSync(file, JSON.stringify(data, null, 2)); }
-function duoKey(a, b){ return [a,b].sort().join('_'); }
+// Functies om JSON te laden / opslaan
+function loadJSON(file) {
+  return JSON.parse(fs.readFileSync(file));
+}
+function saveJSON(file, data) {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+function duoKey(a, b) {
+  return [a, b].sort().join('_');
+}
 
+// Upload-directory en Multer setup
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
+});
+const upload = multer({ storage });
+
+// Online users
 const online = new Map(); // username -> socket.id
 const loggedInUsers = new Set(); // houdt bij wie al is ingelogd
+let bans = {}; // username -> { until: timestamp } , permanent = until=-1
+
+app.use(express.static('public'));
+app.use(express.json({ limit: '20mb' }));
 
 // ----- Auth -----
 app.post('/register', async (req, res) => {
@@ -135,7 +143,7 @@ app.post('/respondFriendRequest', (req, res) => {
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
 
- // ----- upload -----
+// ----- upload -----
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
   const fileUrl = `/uploads/${req.file.filename}`;
@@ -148,8 +156,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // ----- Ban / Unban -----
-let bans = {}; // username -> { until: timestamp } , permanent = until=-1
-
 app.post('/ban', (req,res)=>{
   const { username: target, duration } = req.body || {};
   if(!target || typeof duration === 'undefined') return res.status(400).send({error:'Onvolledige data'});
@@ -172,27 +178,37 @@ io.on('connection', socket => {
   console.log('Socket connected:', socket.id);
 
   socket.on('set username', uname => {
-  const banInfo = bans[uname];
-  if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
-    socket.emit('banned', { duration: banInfo.until });
-    return;
-  } else if (banInfo && banInfo.until <= Date.now()) {
-    delete bans[uname]; // ban verlopen
-  }
+    if(!uname) return;
 
-  if(!uname) return;
-  socket.username = uname;
-  online.set(uname, socket.id);
+    const banInfo = bans[uname];
+    if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
+      socket.emit('banned', { duration: banInfo.until });
+      return;
+    } else if (banInfo && banInfo.until <= Date.now()) {
+      delete bans[uname]; // ban verlopen
+    }
 
-  socket.emit('chat history', loadJSON(mainChatFile));
+    socket.username = uname;
+    online.set(uname, socket.id);
 
-  const allPrivate = loadJSON(privateChatFile);
-  const userThreads = {};
-  Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
-  socket.emit('load private chats', userThreads);
+    // Admin status
+    const accounts = loadJSON(accountsFile);
+    const user = accounts.find(u => u.username === uname);
+    const isAdmin = user?.isAdmin || false;
+    socket.emit('set admin', { isAdmin });
 
-  socket.emit('friends updated');
-});
+    // Main chat history
+    socket.emit('chat history', loadJSON(mainChatFile));
+
+    // Private chats
+    const allPrivate = loadJSON(privateChatFile);
+    const userThreads = {};
+    Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
+    socket.emit('load private chats', userThreads);
+
+    // Friends updated
+    socket.emit('friends updated');
+  });
 
   socket.on('chat message', data => {
     const msg = { id: Date.now(), ...data };
@@ -245,14 +261,15 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
-  if(socket.username) {
-    online.delete(socket.username);
-    loggedInUsers.delete(socket.username);
-  }
-  console.log('Socket disconnected:', socket.id);
+    if(socket.username) {
+      online.delete(socket.username);
+      loggedInUsers.delete(socket.username);
+    }
+    console.log('Socket disconnected:', socket.id);
   });
 });
 
 app.use('/uploads', express.static(uploadDir));
+
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server draait op port ${PORT}`));
