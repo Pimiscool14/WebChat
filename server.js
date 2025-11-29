@@ -1,292 +1,408 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
-const multer = require('multer');
+// public/script.js
+document.addEventListener('DOMContentLoaded', () => {
+  const socket = io();
+  let username = localStorage.getItem('username') || "";
+  let mediaRecorder, audioChunks = [];
+  let currentPrivate = null;
+  window.privateThreads = {};
 
-// JSON-bestanden
-const accountsFile = path.join(__dirname, 'accounts.json');
-const mainChatFile = path.join(__dirname, 'mainChat.json');
-const privateChatFile = path.join(__dirname, 'privateChat.json');
+  // DOM refs
+  const loginContainer = document.getElementById('login-container');
+  const loginBtn = document.getElementById('login-btn');
+  const registerBtn = document.getElementById('register-btn');
+  const loginUsername = document.getElementById('login-username');
+  const loginPassword = document.getElementById('login-password');
+  const registerUsername = document.getElementById('register-username');
+  const registerPassword = document.getElementById('register-password');
+  const logoutBtn = document.getElementById('logout-btn');
 
-// Zorg dat JSON-bestanden bestaan
-if (!fs.existsSync(accountsFile)) fs.writeFileSync(accountsFile, JSON.stringify([]));
-if (!fs.existsSync(mainChatFile)) fs.writeFileSync(mainChatFile, JSON.stringify([]));
-if (!fs.existsSync(privateChatFile)) fs.writeFileSync(privateChatFile, JSON.stringify({}));
+  const chatContainer = document.getElementById('chat-container');
+  const chatSection = document.getElementById('chat-section');
+  const threadHeader = document.getElementById('thread-header');
+  const backToMainBtn = document.getElementById('back-to-main');
+  const threadTitle = document.getElementById('thread-title');
+  const chatForm = document.getElementById('chat-form');
+  const messageInput = document.getElementById('message');
+  const messagesList = document.getElementById('messages');
 
-// Functies om JSON te laden / opslaan
-function loadJSON(file) {
-  return JSON.parse(fs.readFileSync(file));
+  const photoInput = document.getElementById('photo-input');
+  const photoSendBtn = document.getElementById('photo-send-btn');
+  const recordBtn = document.getElementById('record-btn');
+
+  const friendsSection = document.getElementById('friends-section');
+  const friendsList = document.getElementById('friends-list');
+  const addFriendInput = document.getElementById('add-friend-username');
+  const addFriendBtn = document.getElementById('add-friend-btn');
+  const requestsList = document.getElementById('requests-list');
+
+  const fullscreenViewer = document.getElementById('fullscreen-viewer');
+  const fullscreenImg = document.getElementById('fullscreen-img');
+
+  const notification = document.getElementById('notification');
+
+  // helpers
+  function duoKey(a,b){ return [a,b].sort().join('_'); }
+  function stringToColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return "#"+("000000"+Math.floor((Math.abs(Math.sin(h)*16777215))%16777215).toString(16)).slice(-6); }
+  function showNotification(msg, type='info', duration=2000){
+    notification.textContent = msg;
+    notification.style.background = type === 'error' ? '#d73a49' : '#2ea44f';
+    notification.classList.add('show');
+    setTimeout(()=>notification.classList.remove('show'), duration);
+  }
+
+  function formatMessage(text){
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.replace(urlRegex,(url)=>{
+      let embed="";
+      if(url.includes("youtube.com/watch?v=") || url.includes("youtu.be/")){
+        const vid = url.includes("youtube.com") ? (new URL(url).searchParams.get('v')) : url.split('/').pop();
+        if(vid) embed=`<br><iframe width="300" height="169" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`;
+      } else if(url.includes("vimeo.com/")) {
+        const vid = url.split('vimeo.com/')[1];
+        if(vid) embed=`<br><iframe src="https://player.vimeo.com/video/${vid}" width="300" height="169" frameborder="0" allowfullscreen></iframe>`;
+      } else if(url.includes('tiktok.com')){
+        embed=`<br><blockquote class="tiktok-embed" cite="${url}" style="max-width:300px;min-width:300px;"><a href="${url}">Bekijk TikTok</a></blockquote><script async src="https://www.tiktok.com/embed.js"></script>`;
+      } else if(url.match(/\.(mp4|webm|ogg)$/i)){
+        embed=`<br><video width="300" controls><source src="${url}">Je browser ondersteunt geen video</video>`;
+      } else if(url.match(/\.(mp3|wav|ogg)$/i)){
+        embed=`<br><audio controls><source src="${url}">Je browser ondersteunt geen audio</audio>`;
+      } else if(url.match(/\.(jpg|jpeg|png|gif|webp)$/i)){
+        embed=`<br><img class="clickable-photo" src="${url}" alt="afbeelding">`;
+      }
+      return `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>${embed}`;
+    });
+  }
+
+  // message render
+  function renderMessage(data){
+    if(!data || !data.id) return;
+    // avoid duplicate rendering if already in DOM
+    if(document.getElementById(`msg-${data.id}`)) return;
+
+    const li = document.createElement('li');
+    li.id = `msg-${data.id}`;
+
+    const userSpan = document.createElement('span');
+    userSpan.textContent = data.user;
+    userSpan.style.color = stringToColor(data.user);
+    userSpan.style.fontWeight = 'bold';
+    userSpan.style.marginRight = '6px';
+
+    const msgSpan = document.createElement('span');
+    if (data.type === 'image') {
+  msgSpan.innerHTML = `<img class="clickable-photo" src="${data.msg}" alt="afbeelding">`;
+} else if (data.type === 'video') {
+  msgSpan.innerHTML = `<video class="clickable-video" data-src="${data.msg}" src="${data.msg}" controls width="250"></video>`;
+} else if (data.type === 'audio') {
+  msgSpan.innerHTML = `<audio controls src="${data.msg}"></audio>`;
+} else if (data.type === 'file') {
+  msgSpan.innerHTML = `<a href="${data.msg}" download="${data.name}">📎 ${data.name}</a>`;
+} else {
+  msgSpan.innerHTML = formatMessage(data.msg);
 }
-function saveJSON(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-function duoKey(a, b) {
-  return [a, b].sort().join('_');
-}
 
-// Upload-directory en Multer setup
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+    li.appendChild(userSpan);
+    li.appendChild(msgSpan);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, Date.now() + '_' + file.originalname)
-});
-const upload = multer({ storage });
+    // deletion (context menu)
+    li.addEventListener('contextmenu', (e)=> {
+      e.preventDefault();
+      if (data.user !== username) return;
+      if (!confirm('Bericht verwijderen?')) return;
+      if (data.privateTo) {
+        // private message
+        socket.emit('delete private message', { id: data.id, to: data.privateTo });
+      } else {
+        // main message
+        socket.emit('delete message', data.id);
+      }
+    });
 
-// Online users
-const online = new Map(); // username -> socket.id
-const loggedInUsers = new Set(); // houdt bij wie al is ingelogd
-let bans = {}; // username -> { until: timestamp } , permanent = until=-1
-
-app.use(express.static('public'));
-app.use(express.json({ limit: '20mb' }));
-
-// ----- Auth -----
-app.post('/register', async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
-  const accounts = loadJSON(accountsFile);
-  if (accounts.find(a => a.username === username)) return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
-  const hashed = await bcrypt.hash(password, 10);
-  accounts.push({ username, password: hashed, friends: [], friendRequests: [] });
-  saveJSON(accountsFile, accounts);
-  res.send({ message: 'Account aangemaakt!' });
-});
-
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
-
-  // Check of de gebruiker geband is
-  const banInfo = bans[username];
-  if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
-    return res.status(403).send({ error: 'Je bent geband!' });
-  } else if (banInfo && banInfo.until <= Date.now()) {
-    delete bans[username]; // ban verlopen
+    messagesList.appendChild(li);
+    li.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
-  // Check of de gebruiker al is ingelogd
-  if (loggedInUsers.has(username)) return res.status(400).send({ error: 'Gebruiker is al ingelogd!' });
-
-  const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === username);
-  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
-
-  // Markeer gebruiker als ingelogd
-  loggedInUsers.add(username);
-
-  res.send({ message: 'Inloggen gelukt!' });
-});
-
-// ----- Friends -----
-app.get('/getFriends/:username', (req, res) => {
-  const accounts = loadJSON(accountsFile);
-  const user = accounts.find(u => u.username === req.params.username);
-  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-  res.send({ friends: user.friends || [], friendRequests: user.friendRequests || [] });
-});
-
-app.post('/sendFriendRequest', (req, res) => {
-  const { from, to } = req.body || {};
-  if (!from || !to) return res.status(400).send({ error: 'Onvolledige data' });
-  const accounts = loadJSON(accountsFile);
-  const sender = accounts.find(u => u.username === from);
-  const receiver = accounts.find(u => u.username === to);
-  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-  if (from === to) return res.status(400).send({ error: 'Je kunt jezelf geen verzoek sturen' });
-  if ((receiver.friends || []).includes(from)) return res.status(400).send({ error: 'Jullie zijn al vrienden' });
-  receiver.friendRequests = receiver.friendRequests || [];
-  if (receiver.friendRequests.includes(from)) return res.status(400).send({ error: 'Verzoek al verstuurd' });
-  receiver.friendRequests.push(from);
-  saveJSON(accountsFile, accounts);
-
-  const recvSock = online.get(to);
-  if (recvSock) io.to(recvSock).emit('friend request', { from });
-
-  const sndSock = online.get(from);
-  if (sndSock) io.to(sndSock).emit('friends updated');
-
-  res.send({ message: 'Verzoek verstuurd!' });
-});
-
-app.post('/respondFriendRequest', (req, res) => {
-  const { from, to, accept } = req.body || {};
-  if (!from || !to || typeof accept === 'undefined') return res.status(400).send({ error: 'Onvolledige data' });
-  const accounts = loadJSON(accountsFile);
-  const sender = accounts.find(u => u.username === from);
-  const receiver = accounts.find(u => u.username === to);
-  if (!sender || !receiver) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-
-  receiver.friendRequests = (receiver.friendRequests || []).filter(x => x !== from);
-  if (accept) {
-    receiver.friends = receiver.friends || [];
-    sender.friends = sender.friends || [];
-    if (!receiver.friends.includes(from)) receiver.friends.push(from);
-    if (!sender.friends.includes(to)) sender.friends.push(to);
-
-    const key = duoKey(from, to);
-    const allPrivate = loadJSON(privateChatFile);
-    if (!allPrivate[key]) allPrivate[key] = [];
-    saveJSON(privateChatFile, allPrivate);
-  }
-  saveJSON(accountsFile, accounts);
-
-  [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
-  res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
-});
-
-// ----- upload -----
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
-  const fileUrl = `/uploads/${req.file.filename}`;
-  const mime = req.file.mimetype;
-  let type = 'file';
-  if(mime.startsWith('image/')) type = 'image';
-  else if(mime.startsWith('video/')) type = 'video';
-  else if(mime.startsWith('audio/')) type = 'audio';
-  res.send({ url: fileUrl, type, name: req.file.originalname });
-});
-
-// ----- Ban / Unban Verbeterd -----
-app.post('/ban', (req, res) => {
-  const { username: target, duration } = req.body || {};
-  if(!target || typeof duration === 'undefined') return res.status(400).send({ error: 'Onvolledige data' });
-
-  const accounts = loadJSON(accountsFile);
-  if(!accounts.find(u => u.username === target)) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
-
-  bans[target] = { until: duration === -1 ? -1 : Date.now() + duration*1000 };
-
-  // Als de gebruiker online is, forceer uitloggen en stuur melding
-  const sockId = online.get(target);
-  if(sockId){
-    io.to(sockId).emit('banned', { until: bans[target].until });
-    io.sockets.sockets.get(sockId)?.disconnect();
+  // ------------------ Auth / auto-login ------------------
+  async function tryAutoLogin() {
+    if (!username) return;
+    // we do not call /login with password; we trust localStorage for auto restore UX.
+    loginContainer.style.display = 'none';
+    logoutBtn.style.display = 'block';
+    chatContainer.style.display = 'flex';
+    friendsSection.style.display = 'block';
+    socket.emit('set username', username);
+    showNotification(`Welkom terug, ${username}`);
+    loadFriends();
   }
 
-  res.send({ message: `Gebruiker ${target} is geband` });
-});
+  registerBtn.addEventListener('click', async () => {
+    const user = (registerUsername.value||'').trim();
+    const pass = (registerPassword.value||'').trim();
+    if (!user || !pass) return showNotification('Vul gebruikersnaam en wachtwoord in', 'error');
+    try {
+      const res = await fetch('/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, password: pass })});
+      const data = await res.json();
+      showNotification(data.message || data.error, data.message ? 'info' : 'error');
+      if (data.message) { registerUsername.value=''; registerPassword.value=''; }
+    } catch (err) { showNotification('Fout: ' + err.message, 'error'); }
+  });
 
-app.post('/unban', (req, res) => {
-  const { username: target } = req.body || {};
-  if(!target) return res.status(400).send({ error: 'Onvolledige data' });
+  loginBtn.addEventListener('click', async () => {
+    const user = (loginUsername.value||'').trim();
+    const pass = (loginPassword.value||'').trim();
+    if (!user || !pass) return showNotification('Vul gebruikersnaam en wachtwoord in', 'error');
+    try {
+      const res = await fetch('/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: user, password: pass })});
+      const data = await res.json();
+      if (data.message) {
+        username = user;
+        localStorage.setItem('username', username);
+        loginContainer.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        chatContainer.style.display = 'flex';
+        friendsSection.style.display = 'block';
+        socket.emit('set username', username);
+        showNotification('Inloggen gelukt');
+        loadFriends();
+      } else {
+        showNotification(data.error || 'Login mislukt', 'error');
+      }
+    } catch (err) { showNotification('Fout: ' + err.message, 'error'); }
+  });
 
-  if(bans[target]) delete bans[target];
+  logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('username');
+    username = '';
+    loginContainer.style.display = 'block';
+    logoutBtn.style.display = 'none';
+    chatContainer.style.display = 'none';
+    friendsSection.style.display = 'none';
+    messagesList.innerHTML = '';
+    currentPrivate = null;
+    showNotification('Uitgelogd');
+  });
 
-  // Als de gebruiker online is, stuur melding dat hij vrij is
-  const sockId = online.get(target);
-  if(sockId){
-    io.to(sockId).emit('unbanned', { message: 'Je bent vrijgegeven' });
-  }
+  // auto login if saved
+  if (username) tryAutoLogin();
 
-  res.send({ message: `Gebruiker ${target} is vrijgegeven` });
-});
+  // ------------------ Socket listeners ------------------
+  socket.off('chat history'); socket.on('chat history', (msgs) => {
+    if (currentPrivate) return;
+    messagesList.innerHTML = '';
+    (msgs || []).forEach(renderMessage);
+  });
 
-// ----- Socket.IO -----
-io.on('connection', socket => {
-  console.log('Socket connected:', socket.id);
+  socket.off('chat message'); socket.on('chat message', (msg) => {
+    // ensure this is main chat (server sends 'chat message' only for main chat)
+    if (msg.privateTo) return; // safety
+    renderMessage(msg);
+  });
 
-  socket.on('set username', uname => {
-    if(!uname) return;
+  socket.off('message deleted'); socket.on('message deleted', (id) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) el.remove();
+  });
 
-    const banInfo = bans[uname];
-    if (banInfo && (banInfo.until === -1 || banInfo.until > Date.now())) {
-      socket.emit('banned', { duration: banInfo.until });
-      return;
-    } else if (banInfo && banInfo.until <= Date.now()) {
-      delete bans[uname]; // ban verlopen
+  socket.off('load private chats'); socket.on('load private chats', (threads) => {
+    window.privateThreads = threads || {};
+    // if currently in a private chat, re-render it
+    if (currentPrivate) openPrivateChat(currentPrivate);
+  });
+
+  socket.off('private message'); socket.on('private message', (msg) => {
+    // msg.privateTo is receiver OR undefined — server sets privateTo on send
+    const key = duoKey(msg.user, msg.privateTo || username);
+    if (!window.privateThreads[key]) window.privateThreads[key] = [];
+    // prevent duplicates by id
+    if (!window.privateThreads[key].some(m => m.id === msg.id)) {
+      window.privateThreads[key].push(msg);
     }
-
-    socket.username = uname;
-    online.set(uname, socket.id);
-
-    // Admin status
-    const accounts = loadJSON(accountsFile);
-    const user = accounts.find(u => u.username === uname);
-    const isAdmin = user?.isAdmin || false;
-    socket.emit('set admin', { isAdmin });
-
-    // Main chat history
-    socket.emit('chat history', loadJSON(mainChatFile));
-
-    // Private chats
-    const allPrivate = loadJSON(privateChatFile);
-    const userThreads = {};
-    Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
-    socket.emit('load private chats', userThreads);
-
-    // Friends updated
-    socket.emit('friends updated');
+    // render if this thread open
+    if (currentPrivate && duoKey(username, currentPrivate) === key) renderMessage(msg);
   });
 
-  socket.on('chat message', data => {
-    const msg = { id: Date.now(), ...data };
-    if(data.privateTo) {
-      const accounts = loadJSON(accountsFile);
-      const me = accounts.find(u => u.username === socket.username);
-      const other = accounts.find(u => u.username === data.privateTo);
-      if(!me || !other) return;
-      if(!((me.friends||[]).includes(other.username) && (other.friends||[]).includes(me.username))) return;
-
-      const key = duoKey(socket.username, data.privateTo);
-      const allPrivate = loadJSON(privateChatFile);
-      if(!allPrivate[key]) allPrivate[key] = [];
-      allPrivate[key].push(msg);
-      saveJSON(privateChatFile, allPrivate);
-
-      io.to(socket.id).emit('private message', msg);
-      const otherSock = online.get(data.privateTo);
-      if(otherSock) io.to(otherSock).emit('private message', msg);
-    } else {
-      const allMain = loadJSON(mainChatFile);
-      allMain.push(msg);
-      saveJSON(mainChatFile, allMain);
-      io.emit('chat message', msg);
-    }
+  socket.off('private message deleted'); socket.on('private message deleted', ({ id, to }) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) el.remove();
+    const key = duoKey(username, to);
+    if (window.privateThreads[key]) window.privateThreads[key] = window.privateThreads[key].filter(m => m.id !== id);
   });
 
-  socket.on('delete message', id => {
-    let allMain = loadJSON(mainChatFile);
-    const msg = allMain.find(m => m.id === id);
-    if(!msg || msg.user !== socket.username) return;
-    allMain = allMain.filter(m => m.id !== id);
-    saveJSON(mainChatFile, allMain);
-    io.emit('message deleted', id);
+  socket.off('friend request'); socket.on('friend request', ({ from }) => {
+    addRequestElement(from);
+    showNotification('Nieuw vriendschapsverzoek van ' + from);
   });
 
-  socket.on('delete private message', ({ id, to }) => {
-    if(!to) return;
-    const key = duoKey(socket.username, to);
-    const allPrivate = loadJSON(privateChatFile);
-    if(!allPrivate[key]) return;
-    const msg = allPrivate[key].find(m => m.id === id);
-    if(!msg || msg.user !== socket.username) return;
-    allPrivate[key] = allPrivate[key].filter(m => m.id !== id);
-    saveJSON(privateChatFile, allPrivate);
-
-    io.to(socket.id).emit('private message deleted', { id, to });
-    const otherSock = online.get(to);
-    if(otherSock) io.to(otherSock).emit('private message deleted', { id, to });
+  socket.off('friends updated'); socket.on('friends updated', () => {
+    loadFriends();
   });
 
-  socket.on('disconnect', () => {
-    if(socket.username) {
-      online.delete(socket.username);
-      loggedInUsers.delete(socket.username);
-    }
-    console.log('Socket disconnected:', socket.id);
+  // ------------------ Send message (main + private via server) ------------------
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const txt = (messageInput.value || '').trim();
+    if (!txt) return;
+    if (!username) return showNotification('Log eerst in', 'error');
+    // send to server; server will emit back to sender and receiver
+    socket.emit('chat message', { user: username, msg: txt, type: 'text', privateTo: currentPrivate || undefined });
+    messageInput.value = '';
   });
+
+  // file upload (foto, video, audio, of andere bestanden)
+photoInput.addEventListener('change', () => { 
+  photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; 
 });
 
-app.use('/uploads', express.static(uploadDir));
+photoSendBtn.addEventListener('click', async () => {
+  const file = photoInput.files[0];
+  if (!file) return showNotification('Geen bestand gekozen', 'error');
 
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server draait op port ${PORT}`));
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // verstuur bericht naar socket
+    socket.emit('chat message', {
+      user: username,
+      msg: data.url,
+      type: data.type,
+      name: data.name,
+      privateTo: currentPrivate || undefined
+    });
+
+    showNotification('📤 Bestand verzonden!');
+  } catch (err) {
+    showNotification('Upload mislukt: ' + err.message, 'error');
+  } finally {
+    photoInput.value = ''; 
+    photoSendBtn.style.display = 'none';
+  }
+});
+
+  // fullscreen viewer (foto + video)
+document.addEventListener('click', (e) => {
+  // klik op afbeelding
+  if (e.target.classList.contains('clickable-photo')) {
+    fullscreenViewer.innerHTML = `<img src="${e.target.src}" class="max-w-full max-h-full rounded-xl" />`;
+    fullscreenViewer.style.display = 'flex';
+  }
+  // klik op video
+  else if (e.target.classList.contains('clickable-video')) {
+    fullscreenViewer.innerHTML = `
+      <video controls autoplay class="max-w-full max-h-full rounded-xl">
+        <source src="${e.target.getAttribute('data-src')}" type="video/mp4">
+        Je browser ondersteunt geen video.
+      </video>`;
+    fullscreenViewer.style.display = 'flex';
+  }
+});
+
+fullscreenViewer.addEventListener('click', () => {
+  fullscreenViewer.style.display = 'none';
+  fullscreenViewer.innerHTML = '';
+});
+
+  // audio recorder
+  recordBtn.addEventListener('click', async () => {
+    if (!username) return showNotification('Log eerst in om op te nemen', 'error');
+    try {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type: 'audio', privateTo: currentPrivate || undefined });
+          reader.readAsDataURL(blob);
+        };
+        mediaRecorder.start();
+        recordBtn.textContent = 'Stop opnemen';
+      } else if (mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        recordBtn.textContent = '🎤 Opnemen';
+      }
+    } catch (err) { showNotification('Opname fout: ' + err.message, 'error'); }
+  });
+
+  // ------------------ Friends / requests ------------------
+  function addRequestElement(from) {
+    // avoid duplicates in UI
+    if ([...requestsList.children].some(n => n.dataset.from === from)) return;
+    const el = document.createElement('div');
+    el.className = 'req';
+    el.dataset.from = from;
+    el.innerHTML = `<span>${from}</span>`;
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const acc = document.createElement('button'); acc.className = 'accept'; acc.textContent = 'Accepteer';
+    const rej = document.createElement('button'); rej.className = 'reject'; rej.textContent = 'Weiger';
+    acc.onclick = () => respondFriendRequest(from, true, el);
+    rej.onclick = () => respondFriendRequest(from, false, el);
+    actions.appendChild(acc); actions.appendChild(rej); el.appendChild(actions);
+    requestsList.appendChild(el);
+  }
+
+  function respondFriendRequest(from, accept, el) {
+    fetch('/respondFriendRequest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: username, accept }) })
+      .then(r => r.json()).then(() => {
+        if (el) el.remove();
+        loadFriends();
+      }).catch(() => { showNotification('Fout bij beantwoording verzoek', 'error'); });
+  }
+
+  function loadFriends() {
+    if (!username) return;
+    fetch(`/getFriends/${username}`).then(r => r.json()).then(data => {
+      friendsList.innerHTML = '';
+      requestsList.innerHTML = '';
+      (data.friendRequests || []).forEach(req => addRequestElement(req));
+      (data.friends || []).forEach(f => {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.textContent = f;
+        const chatBtn = document.createElement('button'); chatBtn.textContent = '💬'; chatBtn.onclick = () => openPrivateChat(f);
+        li.appendChild(name); li.appendChild(chatBtn); friendsList.appendChild(li);
+      });
+    }).catch(()=>{});
+  }
+
+  addFriendBtn.addEventListener('click', () => {
+    const to = (addFriendInput.value || '').trim();
+    if (!to) return showNotification('Vul gebruikersnaam in', 'error');
+    if (!username) return showNotification('Log eerst in', 'error');
+    if (to === username) return showNotification('Je kunt jezelf geen verzoek sturen', 'error');
+    fetch('/sendFriendRequest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: username, to }) })
+      .then(r => r.json()).then(d => {
+        showNotification(d.message || d.error, d.message ? 'info' : 'error');
+        addFriendInput.value = '';
+      }).catch(()=>{ showNotification('Fout bij versturen verzoek', 'error'); });
+  });
+
+  // private chat open
+  function openPrivateChat(friend) {
+    currentPrivate = friend;
+    threadHeader.style.display = 'flex';
+    threadTitle.textContent = `Privé met ${friend}`;
+    messagesList.innerHTML = '';
+
+    const key = duoKey(username, friend);
+    const msgs = window.privateThreads[key] || [];
+    msgs.forEach(renderMessage);
+  }
+
+  backToMainBtn.addEventListener('click', () => {
+    currentPrivate = null;
+    threadHeader.style.display = 'none';
+    messagesList.innerHTML = '';
+    socket.emit('set username', username); // refresh main history
+  });
+
+  // prevent leaving while recording
+  window.addEventListener('beforeunload', () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+  });
+});

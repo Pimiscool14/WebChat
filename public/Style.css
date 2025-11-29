@@ -192,15 +192,3 @@ body.light #notification { color:#222; }
   #chat-container{flex-direction:column;}
   #chat-section,#friends-section{width:100%; margin-bottom:12px;}
 }
-
-#admin-panel {
-  display: none; /* standaard verborgen */
-  padding: 10px;
-  border: 1px solid #ccc;
-  margin-bottom: 20px;
-  background: #fff;
-  border-radius: 8px;
-}
-#admin-panel input, #admin-panel button {
-  margin: 5px;
-}

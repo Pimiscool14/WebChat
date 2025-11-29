@@ -1,17 +1,6 @@
 // public/script.js
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
-
-  // --- BAN EVENT toevoegen ---
-  socket.on('banned', ({ duration }) => {
-    alert(duration === -1 
-      ? 'Je bent permanent geband!' 
-      : `Je bent geband voor ${Math.round((duration - Date.now())/1000)} seconden`);
-    
-    localStorage.removeItem('username'); // force logout
-    location.reload(); // terug naar login
-  });
-
   let username = localStorage.getItem('username') || "";
   let mediaRecorder, audioChunks = [];
   let currentPrivate = null;
@@ -50,28 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenImg = document.getElementById('fullscreen-img');
 
   const notification = document.getElementById('notification');
-
-  // ------------------ Admin panel ------------------
-const adminPanel = document.getElementById('admin-panel'); // Voeg in index.html toe
-const banUserInput = document.getElementById('ban-user');
-const banDurationInput = document.getElementById('ban-duration');
-const banBtn = document.getElementById('ban-btn');
-
-socket.on('set admin', ({ isAdmin }) => {
-if (isAdmin) adminPanel.style.display = 'block';
-});
-
-banBtn.addEventListener('click', () => {
-const target = banUserInput.value.trim();
-const duration = Number(banDurationInput.value);
-
-if (!target) return showNotification('Vul een gebruiker in', 'error');
-if (isNaN(duration)) return showNotification('Vul een geldige duur in', 'error');
-
-socket.emit('ban user', { targetUser: target, duration });
-showNotification(`Gebruiker ${target} geband!`);
-
-});
 
   // helpers
   function duoKey(a,b){ return [a,b].sort().join('_'); }
