@@ -232,21 +232,6 @@ app.post('/admin/unban', requireAdmin, (req, res) => {
   res.send({ message: 'Gebruiker unbanned' });
 });
 
-const adminLogsFile = path.join(__dirname, 'adminLogs.json');
-if (!fs.existsSync(adminLogsFile)) fs.writeFileSync(adminLogsFile, JSON.stringify([]));
-
-function addAdminLog(admin, action, target) {
-  const logs = JSON.parse(fs.readFileSync(adminLogsFile));
-  logs.push({ time: Date.now(), admin, action, target });
-  fs.writeFileSync(adminLogsFile, JSON.stringify(logs, null, 2));
-}
-
-// Fetch admin logs
-app.get('/admin/logs', requireAdmin, (req, res) => {
-  const logs = JSON.parse(fs.readFileSync(adminLogsFile));
-  res.send({ logs });
-});
-
  // ----- upload -----
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
