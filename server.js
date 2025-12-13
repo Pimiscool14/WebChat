@@ -34,27 +34,90 @@ function duoKey(a, b){ return [a,b].sort().join('_'); }
 
 const online = new Map(); // username -> socket.id
 
+// ===== ADMIN LOGS =====
+const adminLogsFile = path.join(__dirname, 'adminLogs.json');
+if (!fs.existsSync(adminLogsFile)) {
+  fs.writeFileSync(adminLogsFile, JSON.stringify([]));
+}
+
+function addAdminLog(admin, action, target) {
+  const logs = JSON.parse(fs.readFileSync(adminLogsFile));
+  logs.unshift({
+    time: Date.now(),
+    admin,
+    action,
+    target
+  });
+  fs.writeFileSync(adminLogsFile, JSON.stringify(logs, null, 2));
+}
+
+// ===== BAN CHECK =====
+function isBanned(user) {
+  if (!user.banned) return false;
+  if (!user.banUntil) return true;
+  return Date.now() < user.banUntil;
+}
+
+function isBanned(user) {
+  if (!user.banned) return false;
+  if (!user.banUntil) return true; // permanent
+  return Date.now() < user.banUntil;
+}
+
 // ----- Auth -----
 app.post('/register', async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+  if (!username || !password) {
+    return res.status(400).send({ error: 'Vul alles in' });
+  }
+
   const accounts = loadJSON(accountsFile);
-  if (accounts.find(a => a.username === username)) return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
+  if (accounts.find(a => a.username === username)) {
+    return res.status(400).send({ error: 'Gebruikersnaam bestaat al' });
+  }
+
   const hashed = await bcrypt.hash(password, 10);
-  accounts.push({ username, password: hashed, friends: [], friendRequests: [] });
+
+  accounts.push({
+    username,
+    password: hashed,
+    role: 'user',          // <-- nieuw
+    friends: [],
+    friendRequests: [],
+    banned: false,         // <-- nieuw
+    banUntil: null         // <-- nieuw
+  });
+
   saveJSON(accountsFile, accounts);
   res.send({ message: 'Account aangemaakt!' });
 });
 
 app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+  if (!username || !password) {
+    return res.status(400).send({ error: 'Vul alles in' });
+  }
+
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === username);
-  if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  if (!user) {
+    return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+  }
+
+  // ⛔ Ban check
+  if (isBanned(user)) {
+    return res.status(403).send({ error: 'Je bent geband' });
+  }
+
   const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
-  res.send({ message: 'Inloggen gelukt!' });
+  if (!ok) {
+    return res.status(400).send({ error: 'Fout wachtwoord' });
+  }
+
+  res.send({
+    message: 'Inloggen gelukt!',
+    role: user.role
+  });
 });
 
 // ----- Friends -----
@@ -113,6 +176,77 @@ app.post('/respondFriendRequest', (req, res) => {
   [to, from].forEach(u => { const s = online.get(u); if(s) io.to(s).emit('friends updated'); });
   res.send({ message: accept ? 'Vriendschap geaccepteerd' : 'Vriendschap geweigerd' });
 });
+
+// ===== ADMIN CHECK =====
+function requireAdmin(req, res, next) {
+  const admin = req.headers['x-admin-user'];
+  if (!admin) return res.status(403).send({ error: 'Geen toegang' });
+
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === admin);
+  if (!user || user.role !== 'admin') {
+    return res.status(403).send({ error: 'Geen admin rechten' });
+  }
+
+  req.adminUser = admin;
+  next();
+}
+
+// ===== ADMIN ROUTES =====
+
+// Ban gebruiker
+app.post('/admin/ban', requireAdmin, (req, res) => {
+  const { username } = req.body;
+  const accounts = loadJSON(accountsFile);
+  const target = accounts.find(u => u.username === username);
+  if (!target) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  target.banned = true;
+  target.banUntil = null;
+  saveJSON(accountsFile, accounts);
+
+  addAdminLog(req.adminUser, 'BAN', username);
+
+  const sock = online.get(username);
+  if (sock) {
+    io.to(sock).emit('force logout');
+    io.sockets.sockets.get(sock)?.disconnect(true);
+  }
+
+  res.send({ message: 'Gebruiker geband' });
+});
+
+// Unban gebruiker
+app.post('/admin/unban', requireAdmin, (req, res) => {
+  const { username } = req.body;
+  const accounts = loadJSON(accountsFile);
+  const target = accounts.find(u => u.username === username);
+  if (!target) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  target.banned = false;
+  target.banUntil = null;
+  saveJSON(accountsFile, accounts);
+
+  addAdminLog(req.adminUser, 'UNBAN', username);
+
+  res.send({ message: 'Gebruiker unbanned' });
+});
+
+const adminLogsFile = path.join(__dirname, 'adminLogs.json');
+if (!fs.existsSync(adminLogsFile)) fs.writeFileSync(adminLogsFile, JSON.stringify([]));
+
+function addAdminLog(admin, action, target) {
+  const logs = JSON.parse(fs.readFileSync(adminLogsFile));
+  logs.push({ time: Date.now(), admin, action, target });
+  fs.writeFileSync(adminLogsFile, JSON.stringify(logs, null, 2));
+}
+
+// Fetch admin logs
+app.get('/admin/logs', requireAdmin, (req, res) => {
+  const logs = JSON.parse(fs.readFileSync(adminLogsFile));
+  res.send({ logs });
+});
+
  // ----- upload -----
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).send({ error: 'Geen bestand geüpload' });
@@ -130,19 +264,35 @@ io.on('connection', socket => {
   console.log('Socket connected:', socket.id);
 
   socket.on('set username', uname => {
-    if(!uname) return;
-    socket.username = uname;
-    online.set(uname, socket.id);
+  if (!uname) return;
 
-    socket.emit('chat history', loadJSON(mainChatFile));
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === uname);
+  if (!user) return;
 
-    const allPrivate = loadJSON(privateChatFile);
-    const userThreads = {};
-    Object.keys(allPrivate).forEach(k => { if(k.includes(uname)) userThreads[k] = allPrivate[k]; });
-    socket.emit('load private chats', userThreads);
+  // ⛔ Als user geband is → direct uitloggen
+  if (isBanned(user)) {
+    socket.emit('force logout');
+    socket.disconnect(true);
+    return;
+  }
 
-    socket.emit('friends updated');
+  socket.username = uname;
+  online.set(uname, socket.id);
+
+  // main chat
+  socket.emit('chat history', loadJSON(mainChatFile));
+
+  // private chats
+  const allPrivate = loadJSON(privateChatFile);
+  const userThreads = {};
+  Object.keys(allPrivate).forEach(key => {
+    if (key.includes(uname)) userThreads[key] = allPrivate[key];
   });
+  socket.emit('load private chats', userThreads);
+
+  socket.emit('friends updated');
+});
 
   socket.on('chat message', data => {
     const msg = { id: Date.now(), ...data };

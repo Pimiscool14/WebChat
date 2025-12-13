@@ -1,6 +1,44 @@
 // public/script.js
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
+
+// ===== ADMIN PANEL =====
+const adminPanel = document.getElementById('admin-panel');
+const adminHeader = document.getElementById('admin-header');
+const adminLogsDiv = document.getElementById('admin-logs');
+
+let adminOpen = false;
+adminPanel.addEventListener('click', async () => {
+  adminOpen = !adminOpen;
+  adminLogsDiv.style.display = adminOpen ? 'block' : 'none';
+
+  if (adminOpen) {
+    try {
+      const res = await fetch('/admin/logs', { headers: { 'x-admin-user': username } });
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+
+      adminLogsDiv.innerHTML = '';
+      data.logs.forEach(log => {
+        const div = document.createElement('div');
+        div.style.padding = '4px 0';
+        div.style.borderBottom = '1px solid #444';
+        div.textContent = `${new Date(log.time).toLocaleString()} | ${log.admin} | ${log.action} | ${log.target}`;
+        adminLogsDiv.appendChild(div);
+      });
+    } catch (err) {
+      alert('Fout bij laden logs: ' + err.message);
+    }
+  }
+});
+
+  // Force logout door admin
+  socket.on('force logout', () => {
+    alert('Je bent uitgelogd door een admin.');
+    localStorage.removeItem('username');
+    location.reload();
+  });
+
   let username = localStorage.getItem('username') || "";
   let mediaRecorder, audioChunks = [];
   let currentPrivate = null;

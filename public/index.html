@@ -76,6 +76,12 @@
     <img id="fullscreen-img" src="" alt="preview">
   </div>
   <div id="notification"></div>
+  
+<!-- Admin Panel -->
+<div id="admin-panel" style="position:fixed; top:20px; right:20px; width:300px; max-height:80vh; background:#1e1e1e; color:white; border-radius:8px; overflow:hidden; transition: all 0.3s ease; cursor:pointer; z-index:4000;">
+  <div id="admin-header" style="padding:10px; background:#333; font-weight:bold;">Admin Logs ⬇</div>
+  <div id="admin-logs" style="padding:10px; max-height:400px; overflow-y:auto; display:none;"></div>
+</div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>

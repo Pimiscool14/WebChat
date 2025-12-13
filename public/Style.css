@@ -158,6 +158,60 @@ body.light #friends-section { background:#fff; border-color:#ccc; color:#222; }
 }
 body.light #friend-request-popup .popup { background:#eee; color:#222; }
 
+/* ===== Admin Panel Styling ===== */
+#admin-panel {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  font-family: Arial, sans-serif;
+  user-select: none;
+}
+
+#admin-panel:hover {
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+#admin-header {
+  cursor: pointer;
+  background: linear-gradient(90deg, #4a148c, #880e4f);
+  color: #fff;
+  font-weight: bold;
+  padding: 12px;
+  border-bottom: 1px solid #444;
+  text-align: center;
+  transition: background 0.3s ease;
+}
+
+#admin-header:hover {
+  background: linear-gradient(90deg, #880e4f, #4a148c);
+}
+
+#admin-logs div {
+  background: #2a2a2a;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+#admin-logs div:nth-child(odd) {
+  background: #333;
+}
+
+body.light #admin-panel {
+  background: #f0f0f0;
+  color: #222;
+}
+
+body.light #admin-logs div {
+  background: #ddd;
+  color: #222;
+}
+
+body.light #admin-logs div:nth-child(odd) {
+  background: #ccc;
+}
+
 /* fullscreen */
 #fullscreen-viewer {
   position: fixed;
