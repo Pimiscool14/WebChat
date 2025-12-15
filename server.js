@@ -49,12 +49,74 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).send({ error: 'Vul alles in' });
+
   const accounts = loadJSON(accountsFile);
   const user = accounts.find(u => u.username === username);
   if (!user) return res.status(400).send({ error: 'Gebruiker niet gevonden' });
+
+  if (user.banned) return res.status(403).send({ error: 'Je account is geblokkeerd door een admin' });
+
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(400).send({ error: 'Fout wachtwoord' });
-  res.send({ message: 'Inloggen gelukt!' });
+
+  res.send({ message: 'Inloggen gelukt!', isAdmin: !!user.isAdmin });
+});
+
+// ----- bannen -----
+app.post('/admin/ban', (req, res) => {
+  const { admin, target } = req.body || {};
+  const accounts = loadJSON(accountsFile);
+  const adminUser = accounts.find(u => u.username === admin);
+  if(!adminUser?.isAdmin) return res.status(403).send({ error: 'Geen toegang' });
+
+  const user = accounts.find(u => u.username === target);
+  if(!user) return res.status(404).send({ error: 'Gebruiker niet gevonden' });
+
+  user.banned = true;
+  saveJSON(accountsFile, accounts);
+
+  // force logout
+  kickUser(target);
+
+  res.send({ message: `${target} is geblokkeerd.` });
+});
+
+app.post('/admin/unban', (req, res) => {
+  const { admin, target } = req.body || {};
+  const accounts = loadJSON(accountsFile);
+  const adminUser = accounts.find(u => u.username === admin);
+  if(!adminUser?.isAdmin) return res.status(403).send({ error: 'Geen toegang' });
+
+  const user = accounts.find(u => u.username === target);
+  if(!user) return res.status(404).send({ error: 'Gebruiker niet gevonden' });
+
+  user.banned = false;
+  saveJSON(accountsFile, accounts);
+
+  res.send({ message: `${target} is geunbanned.` });
+});
+
+// ----- iets met bannen ofzo -----
+function kickUser(username) {
+  const sockId = online.get(username);
+  if(sockId) {
+    io.to(sockId).emit('force logout', { reason: 'Geblokkeerd door admin' });
+    io.sockets.sockets.get(sockId)?.disconnect();
+    online.delete(username);
+  }
+}
+
+// ----- Reset chat -----
+app.post('/admin/reset-chat', (req, res) => {
+  const { admin } = req.body || {};
+  const accounts = loadJSON(accountsFile);
+  const adminUser = accounts.find(u => u.username === admin);
+  if(!adminUser?.isAdmin) return res.status(403).send({ error: 'Geen toegang' });
+
+  saveJSON(mainChatFile, []); // lege array
+  io.emit('chat history', []); // update alle clients
+
+  res.send({ message: 'Algemene chat is gereset' });
 });
 
 // ----- Friends -----
@@ -171,13 +233,19 @@ io.on('connection', socket => {
   });
 
   socket.on('delete message', id => {
-    let allMain = loadJSON(mainChatFile);
-    const msg = allMain.find(m => m.id === id);
-    if(!msg || msg.user !== socket.username) return;
-    allMain = allMain.filter(m => m.id !== id);
-    saveJSON(mainChatFile, allMain);
-    io.emit('message deleted', id);
-  });
+  let allMain = loadJSON(mainChatFile);
+  const msg = allMain.find(m => m.id === id);
+  if(!msg) return;
+
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === socket.username);
+
+  if(msg.user !== socket.username && !user?.isAdmin) return; // alleen eigen berichten of admin
+
+  allMain = allMain.filter(m => m.id !== id);
+  saveJSON(mainChatFile, allMain);
+  io.emit('message deleted', id);
+});
 
   socket.on('delete private message', ({ id, to }) => {
     if(!to) return;

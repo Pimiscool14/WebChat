@@ -184,6 +184,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // auto login if saved
   if (username) tryAutoLogin();
+// ----- iets bannen -----
+socket.on('force logout', ({ reason }) => {
+  alert(reason || 'Je bent uitgelogd door admin');
+  localStorage.removeItem('username');
+  window.location.reload();
+});
+
+// ----- admin panel -----
+if(data.isAdmin) document.getElementById('admin-panel').style.display='block';
+
+document.getElementById('ban-btn').onclick = () => {
+  const target = document.getElementById('ban-user-input').value.trim();
+  fetch('/admin/ban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ admin: username, target })})
+    .then(r=>r.json()).then(d=>alert(d.message||d.error));
+};
+document.getElementById('unban-btn').onclick = () => {
+  const target = document.getElementById('ban-user-input').value.trim();
+  fetch('/admin/unban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ admin: username, target })})
+    .then(r=>r.json()).then(d=>alert(d.message||d.error));
+};
+document.getElementById('reset-chat-btn').onclick = () => {
+  fetch('/admin/reset-chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ admin: username })})
+    .then(r=>r.json()).then(d=>alert(d.message||d.error));
+};
 
   // ------------------ Socket listeners ------------------
   socket.off('chat history'); socket.on('chat history', (msgs) => {
@@ -197,7 +221,6 @@ socket.on('chat message', (msg) => {
   if (msg.privateTo) return;
   renderMessage(msg);
 });
-
 
   socket.off('message deleted'); socket.on('message deleted', (id) => {
     const el = document.getElementById(`msg-${id}`);
