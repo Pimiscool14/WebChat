@@ -9,8 +9,9 @@
 </head>
 <body>
   <h1>Welkom bij WebChat (Beta)</h1>
-  <button id="logout-btn">Uitloggen</button>
+  <button id="logout-btn" style="display:none;">Uitloggen</button>
 
+  <!-- Login / Register -->
   <div id="login-container">
     <h2>Login</h2>
     <input id="login-username" type="text" placeholder="Gebruikersnaam">
@@ -23,47 +24,60 @@
     <button id="register-btn">Registreer</button>
   </div>
 
+  <!-- Gaming button -->
   <button 
-  onclick="window.open('https://sites.google.com/view/webchatgaming/home', '_blank')" 
-  style="background-color:#1e90ff; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer;">
-  🎮 WebChat Gaming
-</button>
+    onclick="window.open('https://sites.google.com/view/webchatgaming/home', '_blank')" 
+    style="background-color:#1e90ff; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer;">
+    🎮 WebChat Gaming
+  </button>
 
+  <!-- Chat container -->
   <div id="chat-container" style="display:none;">
-
     <div id="chat-section">
+      
+      <!-- Thread header for private chat -->
       <div id="thread-header" style="display:none;">
-        <button id="back-to-main">← Terug naar algemene chat</button>
+        <button id="back-to-main" type="button">← Terug naar algemene chat</button>
         <span id="thread-title"></span>
       </div>
 
+      <!-- Messages -->
       <ul id="messages"></ul>
 
+      <!-- Chat form -->
       <form id="chat-form" autocomplete="off">
         <input id="message" type="text" placeholder="Typ hier je bericht..." required>
         <button type="submit">Verstuur</button>
       </form>
 
+      <!-- Extra tools: file, audio, admin -->
       <div class="extra-tools">
-  <div class="photo-row">
-    <label for="photo-input">📎 Bestand:</label>
-    <input type="file" id="photo-input" accept="*/*">
-    <button id="photo-send-btn" type="button" style="display:none;">Versturen</button>
-  </div>
-  <div class="record-row">
-    <button id="record-btn" type="button">🎤 Opnemen</button>
-  </div>
 
-  <div id="admin-panel" style="display:none; margin-top:10px;">
-    <strong>Admin tools</strong><br>
-    <input id="admin-target" placeholder="Gebruikersnaam">
-    <button id="ban-btn" type="button">Ban</button>
-    <button id="unban-btn" type="button">Unban</button>
-    <button id="reset-main-chat" type="button">Reset chat</button>
-  </div>
-</div>
-</div>
+        <!-- File upload -->
+        <div class="photo-row">
+          <label for="photo-input">📎 Bestand:</label>
+          <input type="file" id="photo-input" accept="*/*">
+          <button id="photo-send-btn" type="button" style="display:none;">Versturen</button>
+        </div>
 
+        <!-- Audio recorder -->
+        <div class="record-row">
+          <button id="record-btn" type="button">🎤 Opnemen</button>
+        </div>
+
+        <!-- Admin panel -->
+        <div id="admin-panel" style="display:none; margin-top:10px;">
+          <strong>Admin tools</strong><br>
+          <input id="admin-target" placeholder="Gebruikersnaam">
+          <button id="ban-btn" type="button">Ban</button>
+          <button id="unban-btn" type="button">Unban</button>
+          <button id="reset-main-chat" type="button">Reset chat</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Friends section -->
     <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
       <div id="requests-list"></div>
@@ -71,21 +85,22 @@
       <h3>Verzoek sturen</h3>
       <div class="friend-add">
         <input id="add-friend-username" type="text" placeholder="Gebruikersnaam toevoegen">
-        <button id="add-friend-btn">Verstuur verzoek</button>
+        <button id="add-friend-btn" type="button">Verstuur verzoek</button>
       </div>
 
       <h3>Chats</h3>
-
       <ul id="friends-list"></ul>
     </aside>
   </div>
 
+  <!-- Popups & notifications -->
   <div id="friend-request-popup"></div>
   <div id="fullscreen-viewer" style="display:none;">
     <img id="fullscreen-img" src="" alt="preview">
   </div>
   <div id="notification"></div>
 
+  <!-- Scripts -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
 </body>
