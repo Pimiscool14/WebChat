@@ -275,14 +275,26 @@ async function tryAutoLogin() {
   });
 
   // -------------------- Chat form --------------------
-  chatForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const txt = (messageInput.value||'').trim();
-    if(!txt) return;
-    if(!username) return showNotification('Log eerst in','error');
-    socket.emit('chat message',{ user: username, msg: txt, type: 'text', privateTo: currentPrivate||undefined });
-    messageInput.value='';
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  if (!username) {
+    showNotification('Log eerst in', 'error');
+    return;
+  }
+
+  const txt = messageInput.value.trim();
+  if (!txt) return;
+
+  socket.emit('chat message', {
+    user: username,
+    msg: txt,
+    type: 'text',
+    privateTo: currentPrivate || null
   });
+
+  messageInput.value = '';
+});
 
   // -------------------- Private chat --------------------
   function openPrivateChat(friend){
