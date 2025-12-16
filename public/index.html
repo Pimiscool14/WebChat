@@ -30,6 +30,16 @@
 </button>
 
   <div id="chat-container" style="display:none;">
+
+<div id="admin-panel" style="display:none; margin-bottom:10px;">
+  <strong>Admin tools</strong><br>
+
+  <input id="admin-target" placeholder="Gebruikersnaam">
+  <button id="ban-btn">Ban</button>
+  <button id="unban-btn">Unban</button>
+  <button id="reset-main-chat">Reset chat</button>
+</div>
+
     <div id="chat-section">
       <div id="thread-header" style="display:none;">
         <button id="back-to-main">← Terug naar algemene chat</button>
@@ -54,14 +64,6 @@
         </div>
       </div>
     </div>
-
-<div id="admin-panel" style="display:none;">
-  <h3>Admin Panel</h3>
-  <input id="ban-user-input" placeholder="Gebruiker bannen">
-  <button id="ban-btn">Ban</button>
-  <button id="unban-btn">Unban</button>
-  <button id="reset-chat-btn">Reset Algemene Chat</button>
-</div>
 
     <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
