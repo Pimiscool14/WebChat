@@ -45,25 +45,23 @@
       </form>
 
       <div class="extra-tools">
-        <div class="photo-row">
-  <label for="photo-input">📎 Bestand:</label>
-  <input type="file" id="photo-input" accept="*/*">
-  <button id="photo-send-btn" style="display:none;">Versturen</button>
+  <div class="photo-row">
+    <label for="photo-input">📎 Bestand:</label>
+    <input type="file" id="photo-input" accept="*/*">
+    <button id="photo-send-btn" type="button" style="display:none;">Versturen</button>
+  </div>
+  <div class="record-row">
+    <button id="record-btn" type="button">🎤 Opnemen</button>
+  </div>
+
+  <div id="admin-panel" style="display:none; margin-top:10px;">
+    <strong>Admin tools</strong><br>
+    <input id="admin-target" placeholder="Gebruikersnaam">
+    <button id="ban-btn" type="button">Ban</button>
+    <button id="unban-btn" type="button">Unban</button>
+    <button id="reset-main-chat" type="button">Reset chat</button>
+  </div>
 </div>
-        <div class="record-row">
-          <button id="record-btn">🎤 Opnemen</button>
-        </div>
-
-<div id="admin-panel" style="display:none; margin-bottom:10px;">
-  <strong>Admin tools</strong><br>
-
-  <input id="admin-target" placeholder="Gebruikersnaam">
-  <button id="ban-btn">Ban</button>
-  <button id="unban-btn">Unban</button>
-  <button id="reset-main-chat">Reset chat</button>
-        </div>
-      </div>
-    </div>
 
     <aside id="friends-section" style="display:none;">
       <h3>Verzoeken</h3>
