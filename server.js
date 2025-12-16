@@ -62,6 +62,25 @@ app.post('/login', async (req, res) => {
   res.send({ message: 'Inloggen gelukt!', isAdmin: !!user.isAdmin });
 });
 
+// ----- current user info (auto-login support) -----
+app.get('/me/:username', (req, res) => {
+  const accounts = loadJSON(accountsFile);
+  const user = accounts.find(u => u.username === req.params.username);
+
+  if (!user) {
+    return res.status(404).send({ error: 'Gebruiker niet gevonden' });
+  }
+
+  if (user.banned) {
+    return res.status(403).send({ error: 'Account geblokkeerd' });
+  }
+
+  res.send({
+    username: user.username,
+    isAdmin: !!user.isAdmin
+  });
+});
+
 // ----- bannen -----
 app.post('/admin/ban', (req, res) => {
   const { admin, target } = req.body || {};
