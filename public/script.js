@@ -41,8 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminPanel = document.getElementById('admin-panel');
   const banInput = document.getElementById('ban-user-input');
   const banBtn = document.getElementById('ban-btn');
-  const unbanBtn = document.getElementById('unban-btn');
-  const resetChatBtn = document.getElementById('reset-chat-btn');
+  const banInput = document.getElementById('admin-target');
+  const resetChatBtn = document.getElementById('reset-main-chat');
 
   // -------------------- Helpers --------------------
   function duoKey(a,b){ return [a,b].sort().join('_'); }
@@ -275,26 +275,14 @@ async function tryAutoLogin() {
   });
 
   // -------------------- Chat form --------------------
-chatForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-
-  if (!username) {
-    showNotification('Log eerst in', 'error');
-    return;
-  }
-
-  const txt = messageInput.value.trim();
-  if (!txt) return;
-
-  socket.emit('chat message', {
-    user: username,
-    msg: txt,
-    type: 'text',
-    privateTo: currentPrivate || null
+  chatForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const txt = (messageInput.value||'').trim();
+    if(!txt) return;
+    if(!username) return showNotification('Log eerst in','error');
+    socket.emit('chat message',{ user: username, msg: txt, type: 'text', privateTo: currentPrivate||undefined });
+    messageInput.value='';
   });
-
-  messageInput.value = '';
-});
 
   // -------------------- Private chat --------------------
   function openPrivateChat(friend){
