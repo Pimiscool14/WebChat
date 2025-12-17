@@ -38,10 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenViewer = document.getElementById('fullscreen-viewer');
   const notification = document.getElementById('notification');
 
+  // Admin DOM
   const adminPanel = document.getElementById('admin-panel');
-  const banInput = document.getElementById('ban-user-input');
-  const banBtn = document.getElementById('ban-btn');
   const banInput = document.getElementById('admin-target');
+  const banBtn = document.getElementById('ban-btn');
+  const unbanBtn = document.getElementById('unban-btn');
   const resetChatBtn = document.getElementById('reset-main-chat');
 
   // -------------------- Helpers --------------------
@@ -274,25 +275,15 @@ async function tryAutoLogin() {
     if(window.privateThreads[key]) window.privateThreads[key] = window.privateThreads[key].filter(m=>m.id!==id);
   });
 
-    // -------------------- CHAT FORM (FIX VOOR /?) --------------------
-  if (chatForm) {
-    chatForm.addEventListener('submit', e => {
-      e.preventDefault(); // 🔥 BELANGRIJK
-
-      const txt = messageInput.value.trim();
-      if (!txt) return;
-      if (!username) return showNotification('Log eerst in','error');
-
-      socket.emit('chat message',{
-        user: username,
-        msg: txt,
-        type: 'text',
-        privateTo: currentPrivate || undefined
-      });
-
-      messageInput.value = '';
-    });
-  }
+  // -------------------- Chat form --------------------
+  chatForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const txt = (messageInput.value||'').trim();
+    if(!txt) return;
+    if(!username) return showNotification('Log eerst in','error');
+    socket.emit('chat message',{ user: username, msg: txt, type: 'text', privateTo: currentPrivate||undefined });
+    messageInput.value='';
+  });
 
   // -------------------- Private chat --------------------
   function openPrivateChat(friend){
