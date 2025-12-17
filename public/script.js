@@ -350,47 +350,81 @@ async function tryAutoLogin() {
       .catch(()=>showNotification('Fout bij versturen verzoek','error'));
   });
 
-  // -------------------- Photo/Video/Audio --------------------
-  photoSendBtn.addEventListener('click', ()=>{
-    if(!photoInput.files.length) return;
-    const file = photoInput.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('user', username);
-    if(currentPrivate) formData.append('privateTo', currentPrivate);
-    fetch('/upload', { method:'POST', body: formData })
-      .then(r=>r.json()).then(d=>{
-        if(d.error) showNotification(d.error,'error');
-        else photoInput.value='';
-      }).catch(()=>showNotification('Upload mislukt','error'));
-  });
+  // file upload (foto, video, audio, of andere bestanden)
+photoInput.addEventListener('change', () => { 
+  photoSendBtn.style.display = (photoInput.files && photoInput.files.length) ? 'inline-block' : 'none'; 
+});
 
-  // -------------------- Audio recorder --------------------
-  recordBtn.addEventListener('click', async ()=>{
-    if(recordBtn.textContent==='🎙️ Start'){
-      if(!navigator.mediaDevices) return showNotification('Microfoon niet beschikbaar','error');
-      try{
-        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+photoSendBtn.addEventListener('click', async () => {
+  const file = photoInput.files[0];
+  if (!file) return showNotification('Geen bestand gekozen', 'error');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // verstuur bericht naar socket
+    socket.emit('chat message', {
+      user: username,
+      msg: data.url,
+      type: data.type,
+      name: data.name,
+      privateTo: currentPrivate || undefined
+    });
+
+    showNotification('📤 Bestand verzonden!');
+  } catch (err) {
+    showNotification('Upload mislukt: ' + err.message, 'error');
+  } finally {
+    photoInput.value = ''; 
+    photoSendBtn.style.display = 'none';
+  }
+});
+
+  // fullscreen viewer (foto + video)
+document.addEventListener('click', (e) => {
+  // klik op afbeelding
+  if (e.target.classList.contains('clickable-photo')) {
+    fullscreenViewer.innerHTML = `<img src="${e.target.src}" class="max-w-full max-h-full rounded-xl" />`;
+    fullscreenViewer.style.display = 'flex';
+  }
+  // klik op video
+  else if (e.target.classList.contains('clickable-video')) {
+    fullscreenViewer.innerHTML = `
+      <video controls autoplay class="max-w-full max-h-full rounded-xl">
+        <source src="${e.target.getAttribute('data-src')}" type="video/mp4">
+        Je browser ondersteunt geen video.
+      </video>`;
+    fullscreenViewer.style.display = 'flex';
+  }
+});
+
+  // audio recorder
+  recordBtn.addEventListener('click', async () => {
+    if (!username) return showNotification('Log eerst in om op te nemen', 'error');
+    try {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
-        audioChunks=[];
+        audioChunks = [];
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = async () => {
-          const blob = new Blob(audioChunks,{type:'audio/webm'});
-          const formData = new FormData();
-          formData.append('file', blob, 'voice.webm');
-          formData.append('user', username);
-          if(currentPrivate) formData.append('privateTo', currentPrivate);
-          fetch('/upload',{ method:'POST', body: formData }).then(r=>r.json()).then(d=>{
-            if(d.error) showNotification(d.error,'error');
-          }).catch(()=>showNotification('Upload mislukt','error'));
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = () => socket.emit('chat message', { user: username, msg: reader.result, type: 'audio', privateTo: currentPrivate || undefined });
+          reader.readAsDataURL(blob);
         };
         mediaRecorder.start();
-        recordBtn.textContent='⏹️ Stop';
-      } catch { showNotification('Geen microfoon toegang','error'); }
-    } else {
-      if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop();
-      recordBtn.textContent='🎙️ Start';
-    }
+        recordBtn.textContent = 'Stop opnemen';
+      } else if (mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        recordBtn.textContent = '🎤 Opnemen';
+      }
+    } catch (err) { showNotification('Opname fout: ' + err.message, 'error'); }
   });
 
   // -------------------- Fullscreen viewer --------------------
