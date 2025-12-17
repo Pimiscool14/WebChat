@@ -41,8 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminPanel = document.getElementById('admin-panel');
   const banInput = document.getElementById('ban-user-input');
   const banBtn = document.getElementById('ban-btn');
-  const unbanBtn = document.getElementById('unban-btn');
-  const resetChatBtn = document.getElementById('reset-chat-btn');
+  const banInput = document.getElementById('admin-target');
+  const resetChatBtn = document.getElementById('reset-main-chat');
 
   // -------------------- Helpers --------------------
   function duoKey(a,b){ return [a,b].sort().join('_'); }
@@ -59,6 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
     notification.classList.add('show');
     setTimeout(()=>notification.classList.remove('show'), duration);
   }
+
+function applyUserState(data) {
+  const adminPanel = document.getElementById('admin-panel');
+  if (!adminPanel) return;
+
+  adminPanel.style.display = data.isAdmin ? 'block' : 'none';
+}
 
   function formatMessage(text){
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -129,21 +136,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------- Auth --------------------
-  async function tryAutoLogin() {
-    if(!username) return;
-    try {
-      const res = await fetch('/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password: '' })});
-      const data = await res.json();
-      if(data.isAdmin) adminPanel.style.display='block';
-    } catch{}
+async function tryAutoLogin() {
+  if (!username) return;
+
+  try {
+    const res = await fetch(`/me/${username}`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error);
+
     loginContainer.style.display = 'none';
     logoutBtn.style.display = 'block';
     chatContainer.style.display = 'flex';
     friendsSection.style.display = 'block';
+
     socket.emit('set username', username);
-    loadFriends();
+    applyUserState(data); // ✅ HIER
+
     showNotification(`Welkom terug, ${username}`);
+    loadFriends();
+  } catch (err) {
+    localStorage.removeItem('username');
   }
+}
 
   registerBtn.addEventListener('click', async () => {
     const user = (registerUsername.value||'').trim();
@@ -171,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatContainer.style.display = 'flex';
         friendsSection.style.display = 'block';
         socket.emit('set username', username);
+        applyUserState(data); // 👈 TOEVOEGEN
         showNotification('Inloggen gelukt');
         loadFriends();
         if(data.isAdmin) adminPanel.style.display='block';
@@ -258,15 +274,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if(window.privateThreads[key]) window.privateThreads[key] = window.privateThreads[key].filter(m=>m.id!==id);
   });
 
-  // -------------------- Chat form --------------------
-  chatForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const txt = (messageInput.value||'').trim();
-    if(!txt) return;
-    if(!username) return showNotification('Log eerst in','error');
-    socket.emit('chat message',{ user: username, msg: txt, type: 'text', privateTo: currentPrivate||undefined });
-    messageInput.value='';
-  });
+    // -------------------- CHAT FORM (FIX VOOR /?) --------------------
+  if (chatForm) {
+    chatForm.addEventListener('submit', e => {
+      e.preventDefault(); // 🔥 BELANGRIJK
+
+      const txt = messageInput.value.trim();
+      if (!txt) return;
+      if (!username) return showNotification('Log eerst in','error');
+
+      socket.emit('chat message',{
+        user: username,
+        msg: txt,
+        type: 'text',
+        privateTo: currentPrivate || undefined
+      });
+
+      messageInput.value = '';
+    });
+  }
 
   // -------------------- Private chat --------------------
   function openPrivateChat(friend){
