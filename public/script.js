@@ -41,8 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminPanel = document.getElementById('admin-panel');
   const banInput = document.getElementById('ban-user-input');
   const banBtn = document.getElementById('ban-btn');
-  const banInput = document.getElementById('admin-target');
-  const resetChatBtn = document.getElementById('reset-main-chat');
+  const unbanBtn = document.getElementById('unban-btn');
+  const resetChatBtn = document.getElementById('reset-chat-btn');
 
   // -------------------- Helpers --------------------
   function duoKey(a,b){ return [a,b].sort().join('_'); }
@@ -59,13 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
     notification.classList.add('show');
     setTimeout(()=>notification.classList.remove('show'), duration);
   }
-
-function applyUserState(data) {
-  const adminPanel = document.getElementById('admin-panel');
-  if (!adminPanel) return;
-
-  adminPanel.style.display = data.isAdmin ? 'block' : 'none';
-}
 
   function formatMessage(text){
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -136,29 +129,21 @@ function applyUserState(data) {
   }
 
   // -------------------- Auth --------------------
-async function tryAutoLogin() {
-  if (!username) return;
-
-  try {
-    const res = await fetch(`/me/${username}`);
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error);
-
+  async function tryAutoLogin() {
+    if(!username) return;
+    try {
+      const res = await fetch('/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password: '' })});
+      const data = await res.json();
+      if(data.isAdmin) adminPanel.style.display='block';
+    } catch{}
     loginContainer.style.display = 'none';
     logoutBtn.style.display = 'block';
     chatContainer.style.display = 'flex';
     friendsSection.style.display = 'block';
-
     socket.emit('set username', username);
-    applyUserState(data); // ✅ HIER
-
-    showNotification(`Welkom terug, ${username}`);
     loadFriends();
-  } catch (err) {
-    localStorage.removeItem('username');
+    showNotification(`Welkom terug, ${username}`);
   }
-}
 
   registerBtn.addEventListener('click', async () => {
     const user = (registerUsername.value||'').trim();
@@ -186,7 +171,6 @@ async function tryAutoLogin() {
         chatContainer.style.display = 'flex';
         friendsSection.style.display = 'block';
         socket.emit('set username', username);
-        applyUserState(data); // 👈 TOEVOEGEN
         showNotification('Inloggen gelukt');
         loadFriends();
         if(data.isAdmin) adminPanel.style.display='block';
